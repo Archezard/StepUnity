@@ -21,8 +21,6 @@ namespace BasketballCards.UI.Views
         private ActivitiesService _activitiesService;
         private List<CardData> _currentCards;
         
-        public System.Action OnBackRequested;
-        
         public void Initialize(ActivitiesService activitiesService)
         {
             _activitiesService = activitiesService;
@@ -30,11 +28,6 @@ namespace BasketballCards.UI.Views
             _openPackButton.onClick.AddListener(OnOpenPackButtonClicked);
             _confirmButton.onClick.AddListener(OnConfirmButtonClicked);
             UpdatePacksCount(2);
-        }
-        
-        protected override void OnBackButtonClicked()
-        {
-            OnBackRequested?.Invoke();
         }
         
         private void UpdatePacksCount(int count)
@@ -55,10 +48,10 @@ namespace BasketballCards.UI.Views
             foreach (var card in cards)
             {
                 var cardObject = Instantiate(_cardPrefab, _cardsContainer);
-                var cardItemView = cardObject.GetComponent<CardItemView>();
-                if (cardItemView != null)
+                var cardUI = cardObject.GetComponent<CardUI>();
+                if (cardUI != null)
                 {
-                    cardItemView.Initialize(card, OnCardSelected, OnCardToggled);
+                    cardUI.Initialize(card, OnCardSelected);
                 }
             }
         }
@@ -74,28 +67,24 @@ namespace BasketballCards.UI.Views
         private void OnCardSelected(CardData card)
         {
             // Просмотр карточки в 3D
-            EventSystem.SelectCard(card);
-        }
-        
-        private void OnCardToggled(CardData card, bool isSelected)
-        {
-            // Не используется в этом View
+            EventSystem.RequestCardView(card);
         }
         
         private void OnOpenPackButtonClicked()
         {
             EventSystem.RequestPackOpen("weekly_pack");
         }
-        
+
         private void OnConfirmButtonClicked()
         {
             _packDisplay.SetActive(false);
             _openPackButton.gameObject.SetActive(true);
             _confirmButton.gameObject.SetActive(false);
             ClearCards();
-            
+
             // Обновляем количество паков
             UpdatePacksCount(1); // Уменьшаем на 1 после открытия
+            //Заглушка
         }
         
         public override void Show()

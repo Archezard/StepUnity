@@ -22,8 +22,6 @@ namespace BasketballCards.UI.Views
         private ActivitiesService _activitiesService;
         private Coroutine _timerCoroutine;
         
-        public System.Action OnBackRequested;
-        
         public void Initialize(ActivitiesService activitiesService)
         {
             _activitiesService = activitiesService;
@@ -31,11 +29,6 @@ namespace BasketballCards.UI.Views
             _getCardButton.onClick.AddListener(OnGetCardButtonClicked);
             UpdateAttemptsText(3);
             StartTimer();
-        }
-        
-        protected override void OnBackButtonClicked()
-        {
-            OnBackRequested?.Invoke();
         }
         
         private void StartTimer()
@@ -48,7 +41,7 @@ namespace BasketballCards.UI.Views
         
         private IEnumerator UpdateTimer()
         {
-            int timeRemaining = 14400; // 4 часа в секундах
+            int timeRemaining = 14400; // заглушка
             
             while (timeRemaining > 0)
             {

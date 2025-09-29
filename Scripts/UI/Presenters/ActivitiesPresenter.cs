@@ -9,35 +9,46 @@ namespace BasketballCards.UI.Presenters
 {
     public class ActivitiesPresenter : BasePresenter
     {
-        [Header("View References")]
-        [SerializeField] private ActivitiesView _activitiesView;
+        [Header("Header Reference")]
+        [SerializeField] private ActivitiesHeaderView _headerView;
+        
+        [Header("SubScreen Views")]
         [SerializeField] private GetCardView _getCardView;
         [SerializeField] private ThrowBallView _throwBallView;
         [SerializeField] private OpenPackView _openPackView;
         
-        private List<BaseView> _allViews = new List<BaseView>();
-        private BaseView _currentView;
+        private List<BaseView> _subViews = new List<BaseView>();
+        private BaseView _currentSubView;
+        private ActivitiesSubScreen _currentSubScreen = ActivitiesSubScreen.GetCard;
         
         protected override void SubscribeToEvents()
         {
             base.SubscribeToEvents();
             
+            EventSystem.OnActivitiesSubScreenChanged += HandleSubScreenChanged;
             EventSystem.OnFreeCardRequested += HandleFreeCardRequested;
             EventSystem.OnBallThrowRequested += HandleBallThrowRequested;
             EventSystem.OnPackOpenRequested += HandlePackOpenRequested;
             EventSystem.OnCardReceived += HandleCardReceived;
             EventSystem.OnErrorOccurred += HandleError;
             
-            // Подписка на события данных пользователя
-            UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
-            UserDataManager.Instance.OnCurrencyChanged += HandleCurrencyChanged;
-            UserDataManager.Instance.OnTicketsChanged += HandleTicketsChanged;
+            if (UserDataManager.Instance != null)
+            {
+                UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
+                UserDataManager.Instance.OnCurrencyChanged += HandleCurrencyChanged;
+                UserDataManager.Instance.OnTicketsChanged += HandleTicketsChanged;
+            }
+            else
+            {
+                Debug.LogWarning("ActivitiesPresenter: UserDataManager.Instance is null during subscription");
+            }
         }
         
         protected override void UnsubscribeFromEvents()
         {
             base.UnsubscribeFromEvents();
             
+            EventSystem.OnActivitiesSubScreenChanged -= HandleSubScreenChanged;
             EventSystem.OnFreeCardRequested -= HandleFreeCardRequested;
             EventSystem.OnBallThrowRequested -= HandleBallThrowRequested;
             EventSystem.OnPackOpenRequested -= HandlePackOpenRequested;
@@ -54,83 +65,109 @@ namespace BasketballCards.UI.Presenters
         
         private void Start()
         {
-            // Собираем все View
-            _allViews.Add(_activitiesView);
-            _allViews.Add(_getCardView);
-            _allViews.Add(_throwBallView);
-            _allViews.Add(_openPackView);
-            
-            // Инициализация View
-            InitializeViews();
-            
-            // Скрываем все View при старте
-            HideAllViews();
+            InitializeHeader();
+            InitializeSubViews();
         }
         
-        private void InitializeViews()
+        private void InitializeHeader()
         {
-            if (_activitiesView != null)
+            if (_headerView != null)
             {
-                _activitiesView.Initialize();
-                _activitiesView.OnGetCardSelected += () => ShowSubView(_getCardView);
-                _activitiesView.OnThrowBallSelected += () => ShowSubView(_throwBallView);
-                _activitiesView.OnOpenPackSelected += () => ShowSubView(_openPackView);
+                _headerView.Initialize();
+                _headerView.OnSubScreenSelected += HandleHeaderSubScreenSelected;
             }
-            
+            else
+            {
+                Debug.LogError("ActivitiesPresenter: HeaderView reference is null!");
+            }
+        }
+        
+        private void InitializeSubViews()
+        {
+            // Все подпредставления
             if (_getCardView != null)
             {
-                _getCardView.Initialize(AppCoordinator.Instance.ActivitiesService);
-                _getCardView.OnBackRequested += () => ShowSubView(_activitiesView);
+                _getCardView.Initialize(AppCoordinator.Instance?.ActivitiesService);
+                _subViews.Add(_getCardView);
             }
             
             if (_throwBallView != null)
             {
-                _throwBallView.Initialize(AppCoordinator.Instance.ActivitiesService);
-                _throwBallView.OnBackRequested += () => ShowSubView(_activitiesView);
+                _throwBallView.Initialize(AppCoordinator.Instance?.ActivitiesService);
+                _subViews.Add(_throwBallView);
             }
             
             if (_openPackView != null)
             {
-                _openPackView.Initialize(AppCoordinator.Instance.ActivitiesService);
-                _openPackView.OnBackRequested += () => ShowSubView(_activitiesView);
+                _openPackView.Initialize(AppCoordinator.Instance?.ActivitiesService);
+                _subViews.Add(_openPackView);
             }
+            
+            // Показываем начальное подпредставление
+            ShowSubView(GetViewForSubScreen(_currentSubScreen));
         }
         
         public override void Show()
         {
-            ShowSubView(_activitiesView);
+            // Хедер
+            if (_headerView != null)
+                _headerView.gameObject.SetActive(true);
+            
+            // Показываем текущее подпредставление
+            if (_currentSubView != null)
+                _currentSubView.Show();
         }
         
         public override void Hide()
         {
-            HideAllViews();
+            // Скрываем хедер
+            if (_headerView != null)
+                _headerView.gameObject.SetActive(false);
+            
+            // Скрываем все подпредставления
+            foreach (var view in _subViews)
+            {
+                if (view != null)
+                    view.Hide();
+            }
+        }
+        
+        private void HandleHeaderSubScreenSelected(ActivitiesSubScreen subScreen)
+        {
+            EventSystem.ChangeActivitiesSubScreen(subScreen);
+        }
+        
+        private void HandleSubScreenChanged(ActivitiesSubScreen subScreen)
+        {
+            _currentSubScreen = subScreen;
+            var targetView = GetViewForSubScreen(subScreen);
+            ShowSubView(targetView);
         }
         
         private void ShowSubView(BaseView view)
         {
             if (view == null) return;
             
-            // Скрываем текущее View
-            if (_currentView != null)
+            // Скрываем текущее подпредставление
+            if (_currentSubView != null)
             {
-                _currentView.Hide();
+                _currentSubView.Hide();
             }
             
-            // Показываем новое View
-            _currentView = view;
-            _currentView.Show();
+            // Показываем новое подпредставление
+            _currentSubView = view;
+            _currentSubView.Show();
         }
         
-        private void HideAllViews()
+        private BaseView GetViewForSubScreen(ActivitiesSubScreen subScreen)
         {
-            foreach (var view in _allViews)
+            switch (subScreen)
             {
-                if (view != null)
-                {
-                    view.Hide();
-                }
+                case ActivitiesSubScreen.GetCard: return _getCardView;
+                case ActivitiesSubScreen.ThrowBall: return _throwBallView;
+                case ActivitiesSubScreen.OpenPack: return _openPackView;
+                default: return _getCardView;
             }
-            _currentView = null;
         }
         
         protected override void HandleUserDataUpdated(UserData userData)
@@ -141,7 +178,14 @@ namespace BasketballCards.UI.Presenters
         
         private void HandleFreeCardRequested()
         {
-            AppCoordinator.Instance.ActivitiesService.GetFreeCard(
+            var activitiesService = AppCoordinator.Instance?.ActivitiesService;
+            if (activitiesService == null)
+            {
+                Debug.LogError("ActivitiesPresenter: ActivitiesService is not available");
+                return;
+            }
+            
+            activitiesService.GetFreeCard(
                 card => {
                     EventSystem.ReceiveCard(card);
                     EventSystem.ShowSuccess($"Получена карта: {card.PlayerName}");
@@ -156,10 +200,17 @@ namespace BasketballCards.UI.Presenters
         
         private void HandleBallThrowRequested()
         {
-            AppCoordinator.Instance.ActivitiesService.ThrowBall(
+            var activitiesService = AppCoordinator.Instance?.ActivitiesService;
+            if (activitiesService == null)
+            {
+                Debug.LogError("ActivitiesPresenter: ActivitiesService is not available");
+                return;
+            }
+            
+            activitiesService.ThrowBall(
                 (score, rewards) => {
                     // Показываем результат в ThrowBallView
-                    if (_currentView is ThrowBallView throwBallView)
+                    if (_currentSubView is ThrowBallView throwBallView)
                     {
                         throwBallView.ShowThrowResult(score, rewards);
                     }
@@ -173,7 +224,6 @@ namespace BasketballCards.UI.Presenters
                         EventSystem.ShowError("Промах!");
                     }
                     
-                    // Обновляем данные пользователя
                     UpdateUserData();
                 },
                 error => {
@@ -183,17 +233,23 @@ namespace BasketballCards.UI.Presenters
         
         private void HandlePackOpenRequested(string packId)
         {
-            AppCoordinator.Instance.ActivitiesService.OpenPack(packId,
+            var activitiesService = AppCoordinator.Instance?.ActivitiesService;
+            if (activitiesService == null)
+            {
+                Debug.LogError("ActivitiesPresenter: ActivitiesService is not available");
+                return;
+            }
+            
+            activitiesService.OpenPack(packId,
                 cards => {
                     // Показываем карты в OpenPackView
-                    if (_currentView is OpenPackView openPackView)
+                    if (_currentSubView is OpenPackView openPackView)
                     {
                         openPackView.DisplayCards(cards);
                     }
                     
                     EventSystem.ShowSuccess($"Открыт пак! Получено карт: {cards.Count}");
                     
-                    // Обновляем данные пользователя
                     UpdateUserData();
                 },
                 error => {
@@ -204,7 +260,7 @@ namespace BasketballCards.UI.Presenters
         private void HandleCardReceived(CardData card)
         {
             // Логика обработки полученной карты
-            if (_currentView is GetCardView getCardView)
+            if (_currentSubView is GetCardView getCardView)
             {
                 getCardView.DisplayCard(card);
             }
@@ -212,11 +268,15 @@ namespace BasketballCards.UI.Presenters
         
         private void UpdateUserData()
         {
-            AppCoordinator.Instance.UserService.GetUserData(
-                UserDataManager.Instance.CurrentUser.username,
-                userData => UserDataManager.Instance.UpdateUserData(userData),
-                error => EventSystem.ShowError("Failed to update user data")
-            );
+            var userService = AppCoordinator.Instance?.UserService;
+            if (userService != null && UserDataManager.Instance != null)
+            {
+                userService.GetUserData(
+                    UserDataManager.Instance.CurrentUser.username,
+                    userData => UserDataManager.Instance.UpdateUserData(userData),
+                    error => EventSystem.ShowError("Failed to update user data")
+                );
+            }
         }
         
         private void HandleCurrencyChanged(int oldGold, int newGold)
@@ -232,9 +292,9 @@ namespace BasketballCards.UI.Presenters
         private void HandleError(string error)
         {
             // Обработка ошибок, специфичных для активностей
-            if (_currentView != null)
+            if (_currentSubView != null)
             {
-                _currentView.ShowError(error);
+                _currentSubView.ShowError(error);
             }
         }
     }

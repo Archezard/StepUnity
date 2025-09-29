@@ -43,8 +43,19 @@ namespace BasketballCards.Core
         
         private void InitializeSystems()
         {
-            _performanceProfiler.Initialize();
-            _telegramManager.Initialize();
+            
+            _performanceProfiler?.Initialize();
+            _telegramManager?.Initialize();
+            
+            if (_telegramManager != null && _appCoordinator != null)
+            {
+                _telegramManager.SetAppCoordinator(_appCoordinator);
+            }
+    
+            if (_userDataManager != null)
+            {
+                Debug.Log("Bootstrap: UserDataManager verified");
+            }
         }
         
         private void StartApplication()
@@ -56,7 +67,7 @@ namespace BasketballCards.Core
             }
             else
             {
-                _appCoordinator.StartApplication();
+                _appCoordinator?.StartApplication();
             }
         }
     }

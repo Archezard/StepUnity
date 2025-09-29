@@ -6,49 +6,89 @@ using UnityEngine;
 
 namespace BasketballCards.UI.Presenters
 {
-    public class CardViewerPresenter : MonoBehaviour
+    public class CardViewerPresenter : BasePresenter
     {
-        [Header("View References")]
+        [Header("View Reference")]
         [SerializeField] private CardViewer3D _cardViewer3D;
-        
+
+        private CardData _currentCard;
+
+        protected override void SubscribeToEvents()
+        {
+            base.SubscribeToEvents();
+            EventSystem.OnCardViewRequested += HandleCardViewRequested;
+            EventSystem.OnCardUpgraded += HandleCardUpgraded;
+        }
+
+        protected override void UnsubscribeFromEvents()
+        {
+            base.UnsubscribeFromEvents();
+            EventSystem.OnCardViewRequested -= HandleCardViewRequested;
+            EventSystem.OnCardUpgraded -= HandleCardUpgraded;
+        }
+
         private void Start()
         {
             if (_cardViewer3D != null)
             {
                 _cardViewer3D.Initialize();
+                _cardViewer3D.OnUpgradeRequested += OnUpgradeRequested;
+                _cardViewer3D.OnCloseRequested += OnCloseRequested;
             }
-            
-            SetupEventHandlers();
         }
-        
-        private void SetupEventHandlers()
+
+        public override void Show()
         {
-            EventSystem.OnCardSelected += HandleCardSelected;
-            EventSystem.OnCardUpgraded += HandleCardUpgraded;
+            // CardViewer3D
+            if (_cardViewer3D != null)
+            {
+                _cardViewer3D.gameObject.SetActive(true);
+            }
         }
-        
-        private void OnDestroy()
-        {
-            EventSystem.OnCardSelected -= HandleCardSelected;
-            EventSystem.OnCardUpgraded -= HandleCardUpgraded;
-        }
-        
-        private void HandleCardSelected(CardData card)
+
+        public override void Hide()
         {
             if (_cardViewer3D != null)
             {
-                _cardViewer3D.ShowCard(card);
+                _cardViewer3D.HideCard();
+                _cardViewer3D.gameObject.SetActive(false);
             }
         }
-        
+
+        private void HandleCardViewRequested(CardData card)
+        {
+            _currentCard = card;
+            if (_cardViewer3D != null)
+            {
+                _cardViewer3D.ShowCard(card);
+                Show();
+            }
+        }
+
         private void HandleCardUpgraded(CardData card)
         {
             // Если просматриваемая карточка была улучшена, обновляем её отображение
-            if (_cardViewer3D != null)
+            if (_currentCard != null && _currentCard.CardId == card.CardId)
             {
-                // Можно добавить логику проверки, что это та же карточка
-                _cardViewer3D.ShowCard(card);
+                _currentCard = card;
+                if (_cardViewer3D != null)
+                {
+                    _cardViewer3D.ShowCard(card);
+                }
             }
+        }
+
+        private void OnUpgradeRequested()
+        {
+            if (_currentCard != null)
+            {
+                EventSystem.UpgradeCard(_currentCard);
+            }
+        }
+
+        private void OnCloseRequested()
+        {
+            Hide();
         }
     }
 }

@@ -37,12 +37,15 @@ namespace BasketballCards.Core
         private Vector2 _previousTouchPosition;
         private GameObject _currentCardInstance;
         private CardData _currentCardData;
+
+        public System.Action OnUpgradeRequested;
+        public System.Action OnCloseRequested;
         
         public void Initialize()
         {
-            _closeButton.onClick.AddListener(HideCard);
+            _closeButton.onClick.AddListener(() => OnCloseRequested?.Invoke());
             _resetRotationButton.onClick.AddListener(ResetRotation);
-            _upgradeButton.onClick.AddListener(OnUpgradeButtonClicked);
+            _upgradeButton.onClick.AddListener(() => OnUpgradeRequested?.Invoke());
             
             HideCard();
         }
@@ -67,7 +70,6 @@ namespace BasketballCards.Core
             // Обновляем информацию о карточке
             UpdateCardInfo(card);
             
-            // Показываем панель
             _cardDisplayPanel.SetActive(true);
             _cardCamera.gameObject.SetActive(true);
             
@@ -84,7 +86,7 @@ namespace BasketballCards.Core
             _defenseText.text = $"Защита: {card.Defense}";
             _staminaText.text = $"Выносливость: {card.Stamina}";
             
-            // Настраиваем кнопку улучшения
+            // Настраиваем кнопку улучшения ХУЙНЯ КАКАЯ-ТО
             _upgradeButton.interactable = card.Level < card.MaxLevel;
             _upgradeButton.GetComponentInChildren<TextMeshPro>().text = 
                 card.Level < card.MaxLevel ? $"Улучшить ({GetUpgradeCost(card)} золота)" : "Макс. уровень";
@@ -92,7 +94,7 @@ namespace BasketballCards.Core
         
         private int GetUpgradeCost(CardData card)
         {
-            // Расчет стоимости улучшения согласно ТЗ
+            // Тут временно такая редкость, но потом это надо под Апи загнать
             switch (card.Rarity)
             {
                 case Rarity.Bronze:
@@ -114,14 +116,14 @@ namespace BasketballCards.Core
         {
             if (_currentCardInstance != null)
             {
-                // Настраиваем визуальное отображение карточки
+                // Визуальное отображение карточки
                 var renderer = _currentCardInstance.GetComponent<Renderer>();
                 if (renderer != null)
                 {
                     renderer.material.color = card.RarityColor;
                 }
                 
-                // Можно добавить дополнительные настройки для 3D отображения
+                // Нужно потом добавить дополнительные настройки для 3D отображения
             }
         }
         
@@ -139,15 +141,6 @@ namespace BasketballCards.Core
             if (_currentCardInstance != null)
             {
                 _currentCardInstance.transform.rotation = Quaternion.identity;
-            }
-        }
-        
-        private void OnUpgradeButtonClicked()
-        {
-            if (_currentCardData != null)
-            {
-                EventSystem.UpgradeCard(_currentCardData);
-                HideCard();
             }
         }
         

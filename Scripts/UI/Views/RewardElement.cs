@@ -43,7 +43,7 @@ namespace BasketballCards.UI.Views
         
         private string GetFreeRewardDescription(int level)
         {
-            // Описание бесплатных наград согласно таблице из ТЗ
+            // Заглушка
             switch (level)
             {
                 case 1: return "1000 золота";
@@ -56,14 +56,13 @@ namespace BasketballCards.UI.Views
                 case 8: return "1500 золота";
                 case 9: return "1 золотой жетон";
                 case 10: return "4 броска";
-                // ... остальные уровни
                 default: return "Награда";
             }
         }
         
         private string GetPremiumRewardDescription(int level)
         {
-            // Описание премиумных наград согласно таблице из ТЗ
+            // Заглушка
             switch (level)
             {
                 case 1: return "Клип карта";
@@ -76,7 +75,6 @@ namespace BasketballCards.UI.Views
                 case 8: return "2500 золота";
                 case 9: return "1 золотой жетон";
                 case 10: return "8 бросков";
-                // ... остальные уровни
                 default: return "Премиум награда";
             }
         }

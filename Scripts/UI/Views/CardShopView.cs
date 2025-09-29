@@ -17,19 +17,12 @@ namespace BasketballCards.UI.Views
         private ShopService _shopService;
         private List<ShopItemElement> _itemElements = new List<ShopItemElement>();
         
-        public System.Action OnBackRequested;
-        
         public void Initialize(ShopService shopService)
         {
             _shopService = shopService;
             LoadShopItems();
         }
         
-        // ПЕРЕОПРЕДЕЛЯЕМ метод для конкретной логики CardShopView
-        protected override void OnBackButtonClicked()
-        {
-            OnBackRequested?.Invoke();
-        }
         
         private void LoadShopItems()
         {

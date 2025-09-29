@@ -25,7 +25,7 @@ namespace BasketballCards.UI.Views
             _experienceText.text = $"+{task.Experience} опыта";
             _progressSlider.value = (float)task.Progress / task.Target;
             
-            // Разный цвет для ежедневных и ежемесячных заданий
+            // Разный цвет для ежедневных и ежемесячных заданий, пока что временно
             _backgroundImage.color = task.IsDaily ? 
                 new Color(0.2f, 0.4f, 0.8f, 0.3f) : 
                 new Color(0.8f, 0.6f, 0.2f, 0.3f);

@@ -26,7 +26,7 @@ namespace BasketballCards.Services
             rewards[1] = new BattlePassReward { Gold = 1000, Diamonds = 0 };
             rewards[2] = new BattlePassReward { Tokens = new Dictionary<Rarity, int> { { Rarity.Bronze, 10 } } };
             rewards[3] = new BattlePassReward { Diamonds = 5 };
-            // ... заполнить остальные уровни согласно таблице наград
+            // Потом заменить на ApI
             
             // потом заменить на API
             var progress = new BattlePassProgress

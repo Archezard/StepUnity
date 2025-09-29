@@ -10,15 +10,12 @@ namespace BasketballCards.UI.Views
     {
         [Header("UI References")]
         [SerializeField] private Button _throwButton;
-        [SerializeField] private TextMeshProUGUI _ballsCountText;
-        [SerializeField] private GameObject _hoop;
-        [SerializeField] private GameObject _ball;
         [SerializeField] private TextMeshProUGUI _scoreText;
+        [SerializeField] private TextMeshProUGUI _ballsCountText;
+        [SerializeField] private GameObject _resultPanel;
+        [SerializeField] private TextMeshProUGUI _resultText;
         
         private ActivitiesService _activitiesService;
-        private int _currentScore = 0;
-        
-        public System.Action OnBackRequested;
         
         public void Initialize(ActivitiesService activitiesService)
         {
@@ -26,12 +23,7 @@ namespace BasketballCards.UI.Views
             
             _throwButton.onClick.AddListener(OnThrowButtonClicked);
             UpdateBallsCount(5);
-            UpdateScore();
-        }
-        
-        protected override void OnBackButtonClicked()
-        {
-            OnBackRequested?.Invoke();
+            _resultPanel.SetActive(false);
         }
         
         private void UpdateBallsCount(int count)
@@ -40,9 +32,14 @@ namespace BasketballCards.UI.Views
             _throwButton.interactable = count > 0;
         }
         
-        private void UpdateScore()
+        public void ShowThrowResult(int score, int rewards)
         {
-            _scoreText.text = $"Счёт: {_currentScore}";
+            _resultPanel.SetActive(true);
+            _resultText.text = $"Очков: {score}\nНаград: {rewards}";
+            _scoreText.text = $"Счет: {score}";
+            
+            // Обновляем количество мячей
+            UpdateBallsCount(4); // Уменьшаем на 1 после броска, тут желательно тоже через апишку
         }
         
         private void OnThrowButtonClicked()
@@ -50,30 +47,10 @@ namespace BasketballCards.UI.Views
             EventSystem.RequestBallThrow();
         }
         
-        public void ShowThrowResult(int score, int rewards)
-        {
-            _currentScore += score;
-            UpdateScore();
-            
-            if (score > 0)
-            {
-                ShowSuccess($"Попадание! +{score} очков");
-                if (rewards > 0)
-                {
-                    ShowSuccess($"Получено наград: {rewards}");
-                }
-            }
-            else
-            {
-                ShowError("Промах!");
-            }
-        }
-        
         public override void Show()
         {
             base.Show();
-            _currentScore = 0;
-            UpdateScore();
+            _resultPanel.SetActive(false);
         }
     }
 }

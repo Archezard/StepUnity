@@ -12,7 +12,7 @@ namespace BasketballCards.Models
         [JsonProperty("premium_unlocked")] public bool PremiumUnlocked;
         [JsonProperty("claimed_rewards")] public List<int> ClaimedRewards;
         
-        // Добавляем награды по уровням
+        // Тут награды по уровням
         [JsonProperty("rewards")] public Dictionary<int, BattlePassReward> Rewards;
     }
 

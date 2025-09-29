@@ -9,37 +9,50 @@ namespace BasketballCards.UI.Presenters
 {
     public class BattlePassPresenter : BasePresenter
     {
-        [Header("View References")]
-        [SerializeField] private BattlePassView _battlePassView;
+        [Header("Header Reference")]
+        [SerializeField] private BattlePassHeaderView _headerView;
+        
+        [Header("SubScreen Views")]
         [SerializeField] private TasksView _tasksView;
         [SerializeField] private RewardsView _rewardsView;
         
-        private List<BaseView> _allViews = new List<BaseView>();
-        private BaseView _currentView;
+        private List<BaseView> _subViews = new List<BaseView>();
+        private BaseView _currentSubView;
+        private BattlePassSubScreen _currentSubScreen = BattlePassSubScreen.Tasks;
         private BattlePassProgress _currentProgress;
         
         protected override void SubscribeToEvents()
         {
             base.SubscribeToEvents();
             
+            EventSystem.OnBattlePassSubScreenChanged += HandleSubScreenChanged;
             EventSystem.OnBattlePassRewardClaimed += HandleRewardClaimed;
             EventSystem.OnBattlePassPremiumPurchased += HandlePremiumPurchased;
             EventSystem.OnErrorOccurred += HandleError;
             
-            // Подписка на события данных пользователя
-            UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
-            UserDataManager.Instance.OnCurrencyChanged += HandleCurrencyChanged;
-            UserDataManager.Instance.OnDiamondsChanged += HandleDiamondsChanged;
+            // ИСПРАВЛЕНИЕ: Добавляем проверку на null для UserDataManager
+            if (UserDataManager.Instance != null)
+            {
+                UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
+                UserDataManager.Instance.OnCurrencyChanged += HandleCurrencyChanged;
+                UserDataManager.Instance.OnDiamondsChanged += HandleDiamondsChanged;
+            }
+            else
+            {
+                Debug.LogWarning("BattlePassPresenter: UserDataManager.Instance is null during subscription");
+            }
         }
         
         protected override void UnsubscribeFromEvents()
         {
             base.UnsubscribeFromEvents();
             
+            EventSystem.OnBattlePassSubScreenChanged -= HandleSubScreenChanged;
             EventSystem.OnBattlePassRewardClaimed -= HandleRewardClaimed;
             EventSystem.OnBattlePassPremiumPurchased -= HandlePremiumPurchased;
             EventSystem.OnErrorOccurred -= HandleError;
             
+            // ИСПРАВЛЕНИЕ: Добавляем проверку на null для UserDataManager
             if (UserDataManager.Instance != null)
             {
                 UserDataManager.Instance.OnUserDataUpdated -= HandleUserDataUpdated;
@@ -50,48 +63,54 @@ namespace BasketballCards.UI.Presenters
         
         private void Start()
         {
-            // Собираем все View
-            _allViews.Add(_battlePassView);
-            _allViews.Add(_tasksView);
-            _allViews.Add(_rewardsView);
-            
-            // Инициализация View
-            InitializeViews();
-            
-            // Скрываем все View при старте
-            HideAllViews();
+            InitializeHeader();
+            InitializeSubViews();
             
             // Загрузка прогресса
             LoadBattlePassProgress();
         }
         
-        private void InitializeViews()
+        private void InitializeHeader()
         {
-            if (_battlePassView != null)
+            if (_headerView != null)
             {
-                _battlePassView.Initialize();
-                _battlePassView.OnTasksSelected += () => ShowSubView(_tasksView);
-                _battlePassView.OnRewardsSelected += () => ShowSubView(_rewardsView);
-                _battlePassView.OnPremiumPurchaseSelected += OnPremiumPurchaseRequested;
+                _headerView.Initialize();
+                _headerView.OnSubScreenSelected += HandleHeaderSubScreenSelected;
             }
-            
+            else
+            {
+                Debug.LogError("BattlePassPresenter: HeaderView reference is null!");
+            }
+        }
+        
+        private void InitializeSubViews()
+        {
             if (_tasksView != null)
             {
-                _tasksView.Initialize(AppCoordinator.Instance.BattlePassService);
-                _tasksView.OnBackRequested += () => ShowSubView(_battlePassView);
+                _tasksView.Initialize(AppCoordinator.Instance?.BattlePassService);
+                _subViews.Add(_tasksView);
             }
             
             if (_rewardsView != null)
             {
-                _rewardsView.Initialize(AppCoordinator.Instance.BattlePassService);
-                _rewardsView.OnBackRequested += () => ShowSubView(_battlePassView);
+                _rewardsView.Initialize(AppCoordinator.Instance?.BattlePassService);
                 _rewardsView.OnRewardClaimed += OnRewardClaimRequested;
+                _subViews.Add(_rewardsView);
             }
+            
+            // Показываем начальное подпредставление
+            ShowSubView(GetViewForSubScreen(_currentSubScreen));
         }
         
         public override void Show()
         {
-            ShowSubView(_battlePassView);
+            // Показываем хедер
+            if (_headerView != null)
+                _headerView.gameObject.SetActive(true);
+            
+            // Показываем текущее подпредставление
+            if (_currentSubView != null)
+                _currentSubView.Show();
             
             // Обновляем данные при показе
             LoadBattlePassProgress();
@@ -99,22 +118,43 @@ namespace BasketballCards.UI.Presenters
         
         public override void Hide()
         {
-            HideAllViews();
+            // Скрываем хедер
+            if (_headerView != null)
+                _headerView.gameObject.SetActive(false);
+            
+            // Скрываем все подпредставления
+            foreach (var view in _subViews)
+            {
+                if (view != null)
+                    view.Hide();
+            }
+        }
+        
+        private void HandleHeaderSubScreenSelected(BattlePassSubScreen subScreen)
+        {
+            EventSystem.ChangeBattlePassSubScreen(subScreen);
+        }
+        
+        private void HandleSubScreenChanged(BattlePassSubScreen subScreen)
+        {
+            _currentSubScreen = subScreen;
+            var targetView = GetViewForSubScreen(subScreen);
+            ShowSubView(targetView);
         }
         
         private void ShowSubView(BaseView view)
         {
             if (view == null) return;
             
-            // Скрываем текущее View
-            if (_currentView != null)
+            // Скрываем текущее подпредставление
+            if (_currentSubView != null)
             {
-                _currentView.Hide();
+                _currentSubView.Hide();
             }
             
-            // Показываем новое View
-            _currentView = view;
-            _currentView.Show();
+            // Показываем новое подпредставление
+            _currentSubView = view;
+            _currentSubView.Show();
             
             // Если показываем rewards view, обновляем данные
             if (view is RewardsView rewardsView && _currentProgress != null)
@@ -123,27 +163,32 @@ namespace BasketballCards.UI.Presenters
             }
         }
         
-        private void HideAllViews()
+        private BaseView GetViewForSubScreen(BattlePassSubScreen subScreen)
         {
-            foreach (var view in _allViews)
+            switch (subScreen)
             {
-                if (view != null)
-                {
-                    view.Hide();
-                }
+                case BattlePassSubScreen.Tasks: return _tasksView;
+                case BattlePassSubScreen.Rewards: return _rewardsView;
+                default: return _tasksView;
             }
-            _currentView = null;
         }
         
         protected override void HandleUserDataUpdated(UserData userData)
         {
-            // При обновлении данных пользователя перезагружаем прогресс баттл-пасса
+            // При обновлении данных пользователя перезагружаем прогресс бп
             LoadBattlePassProgress();
         }
         
         private void LoadBattlePassProgress()
         {
-            AppCoordinator.Instance.BattlePassService.GetBattlePassProgress(
+            var battlePassService = AppCoordinator.Instance?.BattlePassService;
+            if (battlePassService == null)
+            {
+                Debug.LogError("BattlePassPresenter: BattlePassService is not available");
+                return;
+            }
+            
+            battlePassService.GetBattlePassProgress(
                 progress => {
                     _currentProgress = progress;
                     UpdateBattlePassUI();
@@ -155,14 +200,13 @@ namespace BasketballCards.UI.Presenters
         
         private void UpdateBattlePassUI()
         {
-            if (_battlePassView != null && _currentProgress != null)
+            if (_currentProgress != null)
             {
-                _battlePassView.DisplayProgress(_currentProgress);
-            }
-            
-            if (_rewardsView != null && _currentProgress != null)
-            {
-                _rewardsView.DisplayRewards(_currentProgress);
+                // Обновляем данные в текущем подпредставлении
+                if (_currentSubView is RewardsView rewardsView)
+                {
+                    rewardsView.DisplayRewards(_currentProgress);
+                }
             }
         }
         
@@ -171,23 +215,29 @@ namespace BasketballCards.UI.Presenters
             EventSystem.ClaimBattlePassReward(level, isPremium);
         }
         
-        private void OnPremiumPurchaseRequested()
-        {
-            EventSystem.PurchaseBattlePassPremium();
-        }
-        
         private void HandleRewardClaimed(int level, bool isPremium)
         {
-            AppCoordinator.Instance.BattlePassService.ClaimReward(level, isPremium,
+            var battlePassService = AppCoordinator.Instance?.BattlePassService;
+            if (battlePassService == null)
+            {
+                Debug.LogError("BattlePassPresenter: BattlePassService is not available");
+                return;
+            }
+            
+            battlePassService.ClaimReward(level, isPremium,
                 reward => {
                     EventSystem.ShowSuccess($"Награда уровня {level} получена!");
                     
                     // Обновляем данные пользователя
-                    AppCoordinator.Instance.UserService.GetUserData(
-                        UserDataManager.Instance.CurrentUser.username,
-                        userData => UserDataManager.Instance.UpdateUserData(userData),
-                        error => EventSystem.ShowError("Failed to update user data")
-                    );
+                    var userService = AppCoordinator.Instance?.UserService;
+                    if (userService != null && UserDataManager.Instance != null)
+                    {
+                        userService.GetUserData(
+                            UserDataManager.Instance.CurrentUser.username,
+                            userData => UserDataManager.Instance.UpdateUserData(userData),
+                            error => EventSystem.ShowError("Failed to update user data")
+                        );
+                    }
                     
                     // Перезагружаем прогресс
                     LoadBattlePassProgress();
@@ -199,7 +249,14 @@ namespace BasketballCards.UI.Presenters
         
         private void HandlePremiumPurchased()
         {
-            AppCoordinator.Instance.BattlePassService.PurchasePremium(
+            var battlePassService = AppCoordinator.Instance?.BattlePassService;
+            if (battlePassService == null)
+            {
+                Debug.LogError("BattlePassPresenter: BattlePassService is not available");
+                return;
+            }
+            
+            battlePassService.PurchasePremium(
                 success => {
                     if (success)
                     {
@@ -228,10 +285,10 @@ namespace BasketballCards.UI.Presenters
         
         private void HandleError(string error)
         {
-            // Обработка ошибок, специфичных для баттл-пасса
-            if (_currentView != null)
+            // Обработка ошибок, специфичных для Бпшки
+            if (_currentSubView != null)
             {
-                _currentView.ShowError(error);
+                _currentSubView.ShowError(error);
             }
         }
     }

@@ -1,5 +1,4 @@
 using BasketballCards.Models;
-using System;
 using UnityEngine;
 
 namespace BasketballCards.Core
@@ -10,11 +9,10 @@ namespace BasketballCards.Core
         
         public UserData CurrentUser { get; private set; }
         
-        // События для обновления данных
-        public event Action<UserData> OnUserDataUpdated;
-        public event Action<int, int> OnCurrencyChanged; // oldGold, newGold
-        public event Action<int, int> OnDiamondsChanged; // oldDiamonds, newDiamonds
-        public event Action<int, int> OnTicketsChanged; // oldTickets, newTickets
+        public event System.Action<UserData> OnUserDataUpdated;
+        public event System.Action<int, int> OnCurrencyChanged; // oldGold, newGold
+        public event System.Action<int, int> OnDiamondsChanged; // oldDiamonds, newDiamonds
+        public event System.Action<int, int> OnTicketsChanged; // oldTickets, newTickets
         
         private void Awake()
         {
@@ -26,67 +24,26 @@ namespace BasketballCards.Core
             
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            
-            // Инициализация пустыми данными
-            CurrentUser = new UserData
-            {
-                user_id = 0,
-                username = "Guest",
-                gold = 1000,
-                diamonds = 100,
-                tickets = 5
-            };
         }
         
-        public void UpdateUserData(UserData newData)
+        public void UpdateUserData(UserData userData)
         {
             var oldGold = CurrentUser?.gold ?? 0;
             var oldDiamonds = CurrentUser?.diamonds ?? 0;
             var oldTickets = CurrentUser?.tickets ?? 0;
             
-            CurrentUser = newData;
+            CurrentUser = userData;
             
-            // Вызываем события изменений
-            if (oldGold != newData.gold)
-                OnCurrencyChanged?.Invoke(oldGold, newData.gold);
-                
-            if (oldDiamonds != newData.diamonds)
-                OnDiamondsChanged?.Invoke(oldDiamonds, newData.diamonds);
-                
-            if (oldTickets != newData.tickets)
-                OnTicketsChanged?.Invoke(oldTickets, newData.tickets);
+            OnUserDataUpdated?.Invoke(userData);
             
-            // Вызываем общее событие через EventSystem
-            EventSystem.UpdateUserData(newData);
-            OnUserDataUpdated?.Invoke(newData);
+            if (oldGold != userData.gold)
+                OnCurrencyChanged?.Invoke(oldGold, userData.gold);
+                
+            if (oldDiamonds != userData.diamonds)
+                OnDiamondsChanged?.Invoke(oldDiamonds, userData.diamonds);
+                
+            if (oldTickets != userData.tickets)
+                OnTicketsChanged?.Invoke(oldTickets, userData.tickets);
         }
-        
-        public bool HasEnoughGold(int amount) => CurrentUser.gold >= amount;
-        public bool HasEnoughDiamonds(int amount) => CurrentUser.diamonds >= amount;
-        public bool HasEnoughTickets(int amount) => CurrentUser.tickets >= amount;
-        
-        public void AddGold(int amount)
-        {
-            if (CurrentUser != null)
-            {
-                var oldGold = CurrentUser.gold;
-                CurrentUser.gold += amount;
-                OnCurrencyChanged?.Invoke(oldGold, CurrentUser.gold);
-                OnUserDataUpdated?.Invoke(CurrentUser);
-            }
-        }
-        
-        public void SpendGold(int amount)
-        {
-            if (HasEnoughGold(amount))
-            {
-                var oldGold = CurrentUser.gold;
-                CurrentUser.gold -= amount;
-                OnCurrencyChanged?.Invoke(oldGold, CurrentUser.gold);
-                OnUserDataUpdated?.Invoke(CurrentUser);
-            }
-        }
-        
-        // Аналогичные методы для алмазов и билетов...
     }
 }

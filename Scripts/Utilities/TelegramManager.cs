@@ -7,7 +7,9 @@ namespace BasketballCards.Managers
     {
         public static TelegramManager Instance { get; private set; }
         
-        public void Initialize()
+        private AppCoordinator _appCoordinator;
+        
+        private void Awake()
         {
             if (Instance != null && Instance != this)
             {
@@ -16,38 +18,46 @@ namespace BasketballCards.Managers
             }
             
             Instance = this;
-            Debug.Log("TelegramManager: Initialized");
+            DontDestroyOnLoad(gameObject);
+        }
+        
+        public void Initialize()
+        {
+            Debug.Log("TelegramManager: Initializing...");
+            // Инициализация Telegram Web App
+        }
+        
+        // Метод для установки ссылки на AppCoordinator
+        public void SetAppCoordinator(AppCoordinator appCoordinator)
+        {
+            _appCoordinator = appCoordinator;
+            Debug.Log("TelegramManager: AppCoordinator reference set");
         }
         
         public void StartApplication()
         {
             Debug.Log("TelegramManager: Starting application...");
             
-            // Получение данных из Telegram
-            string username = GetUsernameFromTelegram();
-            
-            // Загрузка данных пользователя
-            AppCoordinator.Instance.UserService.GetUserData(
-                username,
-                userData => {
-                    UserDataManager.Instance.UpdateUserData(userData);
-                    Debug.Log("TelegramManager: User data loaded successfully");
-                    
-                    // Переход к основному экрану
-                    EventSystem.NavigateTo(AppScreen.Collection);
-                },
-                error => {
-                    Debug.LogError("TelegramManager: Failed to load user data: " + error);
-                    EventSystem.ShowError("Failed to load user data");
+            if (_appCoordinator == null)
+            {
+                _appCoordinator = FindFirstObjectByType<AppCoordinator>();
+                
+                if (_appCoordinator == null)
+                {
+                    Debug.LogError("TelegramManager: AppCoordinator is not initialized and not found in scene!");
+                    return;
                 }
-            );
-        }
-        
-        private string GetUsernameFromTelegram()
-        {
-            // Здесь будет код для получения данных из Telegram Web App
-            // Временная заглушка для тестирования
-            return "test_user";
+            }
+
+            if (!_appCoordinator.IsInitialized())
+            {
+                Debug.LogError("TelegramManager: AppCoordinator is not fully initialized!");
+                // Можно попробовать подождать или перезапустить позже
+                return;
+            }
+            
+            // Запускаем приложение через AppCoordinator
+            _appCoordinator.StartApplication();
         }
     }
 }

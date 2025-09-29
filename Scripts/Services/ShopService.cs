@@ -55,7 +55,7 @@ namespace BasketballCards.Services
             {
                 Success = true,
                 Message = "Purchase successful",
-                Items = new List<CardData>() // Это кринж, если куплен пак? Не работает
+                Items = new List<CardData>() // Проверить, как будто не так как надо работает
             };
             
             onSuccess?.Invoke(result);

@@ -9,34 +9,45 @@ namespace BasketballCards.UI.Presenters
 {
     public class CollectionPresenter : BasePresenter
     {
-        [Header("View References")]
-        [SerializeField] private CollectionView _collectionView;
+        [Header("Header Reference")]
+        [SerializeField] private CollectionHeaderView _headerView;
         
-        private List<CardData> _userCards;
-        private List<CardData> _selectedCards = new List<CardData>();
+        [Header("SubScreen Views")]
+        [SerializeField] private CollectionView _collectionView;
+        [SerializeField] private WorkshopView _workshopView;
+        [SerializeField] private AlbumView _albumView;
+        [SerializeField] private ExchangeView _exchangeView;
+        
+        private List<BaseView> _subViews = new List<BaseView>();
+        private BaseView _currentSubView;
+        private CollectionSubScreen _currentSubScreen = CollectionSubScreen.Collection;
         
         protected override void SubscribeToEvents()
         {
             base.SubscribeToEvents();
             
-            EventSystem.OnCardViewRequested += HandleCardViewRequested;
-            EventSystem.OnCardSelected += HandleCardSelected;
+            EventSystem.OnCollectionSubScreenChanged += HandleSubScreenChanged;
             EventSystem.OnCardUpgraded += HandleCardUpgraded;
             EventSystem.OnCardsCrafted += HandleCardsCrafted;
             EventSystem.OnCardsDisassembled += HandleCardsDisassembled;
             EventSystem.OnErrorOccurred += HandleError;
             
-            // Подписка на события данных пользователя
-            UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
-            UserDataManager.Instance.OnCurrencyChanged += HandleCurrencyChanged;
+            if (UserDataManager.Instance != null)
+            {
+                UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
+                UserDataManager.Instance.OnCurrencyChanged += HandleCurrencyChanged;
+            }
+            else
+            {
+                Debug.LogWarning("CollectionPresenter: UserDataManager.Instance is null during subscription");
+            }
         }
         
         protected override void UnsubscribeFromEvents()
         {
             base.UnsubscribeFromEvents();
             
-            EventSystem.OnCardViewRequested -= HandleCardViewRequested;
-            EventSystem.OnCardSelected -= HandleCardSelected;
+            EventSystem.OnCollectionSubScreenChanged -= HandleSubScreenChanged;
             EventSystem.OnCardUpgraded -= HandleCardUpgraded;
             EventSystem.OnCardsCrafted -= HandleCardsCrafted;
             EventSystem.OnCardsDisassembled -= HandleCardsDisassembled;
@@ -51,38 +62,118 @@ namespace BasketballCards.UI.Presenters
         
         private void Start()
         {
-            // Инициализация View
+            InitializeHeader();
+            InitializeSubViews();
+            
+            // Загрузка начальных данных
+            LoadUserCards();
+        }
+        
+        private void InitializeHeader()
+        {
+            if (_headerView != null)
+            {
+                _headerView.Initialize();
+                _headerView.OnSubScreenSelected += HandleHeaderSubScreenSelected;
+            }
+            else
+            {
+                Debug.LogError("CollectionPresenter: HeaderView reference is null!");
+            }
+        }
+        
+        private void InitializeSubViews()
+        {
+            // Собираем все подпредставления
             if (_collectionView != null)
             {
                 _collectionView.Initialize(this);
+                _subViews.Add(_collectionView);
             }
             
-            // Загрузка карточек пользователя
-            LoadUserCards();
-        }
-
-        private void HandleCardViewRequested(CardData card)
-        {
-            // Открываем 3D просмотр карточки
-            if (_collectionView != null)
+            if (_workshopView != null)
             {
-                _collectionView.ShowCardDetails(card);
+                _workshopView.Initialize(this);
+                _subViews.Add(_workshopView);
             }
+            
+            if (_albumView != null)
+            {
+                _albumView.Initialize(this);
+                _subViews.Add(_albumView);
+            }
+            
+            if (_exchangeView != null)
+            {
+                _exchangeView.Initialize(this);
+                _subViews.Add(_exchangeView);
+            }
+            
+            // Показываем начальное подпредставление
+            ShowSubView(GetViewForSubScreen(_currentSubScreen));
         }
         
         public override void Show()
         {
-            if (_collectionView != null)
-            {
-                _collectionView.Show();
-            }
+            // Показываем хедер
+            if (_headerView != null)
+                _headerView.gameObject.SetActive(true);
+            
+            // Показываем текущее подпредставление
+            if (_currentSubView != null)
+                _currentSubView.Show();
         }
         
         public override void Hide()
         {
-            if (_collectionView != null)
+            // Скрываем хедер
+            if (_headerView != null)
+                _headerView.gameObject.SetActive(false);
+            
+            // Скрываем все подпредставления
+            foreach (var view in _subViews)
             {
-                _collectionView.Hide();
+                if (view != null)
+                    view.Hide();
+            }
+        }
+        
+        private void HandleHeaderSubScreenSelected(CollectionSubScreen subScreen)
+        {
+            EventSystem.ChangeCollectionSubScreen(subScreen);
+        }
+        
+        private void HandleSubScreenChanged(CollectionSubScreen subScreen)
+        {
+            _currentSubScreen = subScreen;
+            var targetView = GetViewForSubScreen(subScreen);
+            ShowSubView(targetView);
+        }
+        
+        private void ShowSubView(BaseView view)
+        {
+            if (view == null) return;
+            
+            // Скрываем текущее подпредставление
+            if (_currentSubView != null)
+            {
+                _currentSubView.Hide();
+            }
+            
+            // Показываем новое подпредставление
+            _currentSubView = view;
+            _currentSubView.Show();
+        }
+        
+        private BaseView GetViewForSubScreen(CollectionSubScreen subScreen)
+        {
+            switch (subScreen)
+            {
+                case CollectionSubScreen.Collection: return _collectionView;
+                case CollectionSubScreen.Workshop: return _workshopView;
+                case CollectionSubScreen.Album: return _albumView;
+                case CollectionSubScreen.Exchange: return _exchangeView;
+                default: return _collectionView;
             }
         }
         
@@ -94,9 +185,15 @@ namespace BasketballCards.UI.Presenters
         
         private void LoadUserCards()
         {
-            AppCoordinator.Instance.CardService.GetUserCards(
+            var cardService = AppCoordinator.Instance?.CardService;
+            if (cardService == null)
+            {
+                Debug.LogError("CollectionPresenter: CardService is not available");
+                return;
+            }
+            
+            cardService.GetUserCards(
                 cards => {
-                    _userCards = cards;
                     if (_collectionView != null)
                     {
                         _collectionView.DisplayCards(cards);
@@ -107,49 +204,30 @@ namespace BasketballCards.UI.Presenters
                 });
         }
         
-        private void HandleCardSelected(CardData card)
-        {
-            // Показ деталей карточки
-            if (_collectionView != null)
-            {
-                _collectionView.ShowCardDetails(card);
-            }
-        }
-        
         private void HandleCardUpgraded(CardData card)
         {
             // Обновление карточки после улучшения
-            var index = _userCards.FindIndex(c => c.CardId == card.CardId);
-            if (index >= 0)
+            if (_currentSubView is ICollectionView collectionView)
             {
-                _userCards[index] = card;
-                if (_collectionView != null)
-                {
-                    _collectionView.OnCardUpgraded(card);
-                }
+                collectionView.OnCardUpgraded(card);
             }
         }
         
         private void HandleCardsCrafted(List<CardData> cards)
         {
             // Добавление скрафченных карточек в коллекцию
-            _userCards.AddRange(cards);
-            if (_collectionView != null)
+            if (_currentSubView is ICollectionView collectionView)
             {
-                _collectionView.OnCardCrafted(cards[0]); // В текущей реализации крафт одной карты
+                collectionView.OnCardCrafted(cards[0]);
             }
         }
         
         private void HandleCardsDisassembled(List<CardData> cards)
         {
             // Удаление разобранных карточек из коллекции
-            foreach (var card in cards)
+            if (_currentSubView is ICollectionView collectionView)
             {
-                _userCards.RemoveAll(c => c.CardId == card.CardId);
-            }
-            if (_collectionView != null)
-            {
-                _collectionView.DisplayCards(_userCards);
+                // Здесь нужно обновить отображение коллекции
             }
         }
         
@@ -160,115 +238,42 @@ namespace BasketballCards.UI.Presenters
         
         private void HandleError(string error)
         {
-            if (_collectionView != null)
+            if (_currentSubView != null)
             {
-                _collectionView.ShowError(error);
+                _currentSubView.ShowError(error);
             }
         }
         
-        // Методы, вызываемые из View
+        // Методы, вызываемые из под-представлений
         public void OnCardSelectedInView(CardData card)
         {
-            EventSystem.SelectCard(card);
-        }
-        
-        public void OnCardToggleSelectedInView(CardData card, bool isSelected)
-        {
-            if (isSelected && !_selectedCards.Contains(card))
-            {
-                _selectedCards.Add(card);
-            }
-            else if (!isSelected && _selectedCards.Contains(card))
-            {
-                _selectedCards.Remove(card);
-            }
-            
-            if (_collectionView != null)
-            {
-                _collectionView.UpdateSelectionCount(_selectedCards.Count);
-            }
-        }
-        
-        public void OnCraftRequestedInView()
-        {
-            if (_selectedCards.Count < 10)
-            {
-                EventSystem.ShowError("Нужно 10 карточек для крафта");
-                return;
-            }
-            
-            var cardIds = _selectedCards.ConvertAll(c => c.CardId);
-            AppCoordinator.Instance.CraftService.CraftCards(cardIds,
-                craftedCard => {
-                    // В текущей реализации крафт возвращает одну карту
-                    EventSystem.CraftCards(new List<CardData> { craftedCard });
-                    
-                    // Обновляем данные пользователя
-                    AppCoordinator.Instance.UserService.GetUserData(
-                        UserDataManager.Instance.CurrentUser.username,
-                        userData => UserDataManager.Instance.UpdateUserData(userData),
-                        error => EventSystem.ShowError("Failed to update user data")
-                    );
-                    
-                    // Сбрасываем выбранные карточки
-                    _selectedCards.Clear();
-                    if (_collectionView != null)
-                    {
-                        _collectionView.UpdateSelectionCount(0);
-                        _collectionView.ClearSelection();
-                    }
-                },
-                error => {
-                    EventSystem.ShowError(error);
-                });
-        }
-        
-        public void OnDisassembleRequestedInView()
-        {
-            if (_selectedCards.Count == 0)
-            {
-                EventSystem.ShowError("Выберите карточки для разбора");
-                return;
-            }
-            
-            var cardIds = _selectedCards.ConvertAll(c => c.CardId);
-            AppCoordinator.Instance.CraftService.DisassembleCards(cardIds,
-                result => {
-                    // Временная заглушка: мы не получаем список разобранных карт, поэтому используем выбранные
-                    EventSystem.DisassembleCards(_selectedCards);
-                    
-                    // Обновляем данные пользователя
-                    AppCoordinator.Instance.UserService.GetUserData(
-                        UserDataManager.Instance.CurrentUser.username,
-                        userData => UserDataManager.Instance.UpdateUserData(userData),
-                        error => EventSystem.ShowError("Failed to update user data")
-                    );
-                    
-                    // Сбрасываем выбранные карточки
-                    _selectedCards.Clear();
-                    if (_collectionView != null)
-                    {
-                        _collectionView.UpdateSelectionCount(0);
-                        _collectionView.ClearSelection();
-                    }
-                },
-                error => {
-                    EventSystem.ShowError(error);
-                });
+            // Прямой вызов CardViewer через EventSystem
+            EventSystem.RequestCardView(card);
         }
         
         public void OnUpgradeCardRequestedInView(CardData card)
         {
-            AppCoordinator.Instance.CardService.UpgradeCard(card.CardId,
+            var cardService = AppCoordinator.Instance?.CardService;
+            if (cardService == null)
+            {
+                Debug.LogError("CollectionPresenter: CardService is not available");
+                return;
+            }
+            
+            cardService.UpgradeCard(card.CardId,
                 upgradedCard => {
                     EventSystem.UpgradeCard(upgradedCard);
                     
                     // Обновляем данные пользователя
-                    AppCoordinator.Instance.UserService.GetUserData(
-                        UserDataManager.Instance.CurrentUser.username,
-                        userData => UserDataManager.Instance.UpdateUserData(userData),
-                        error => EventSystem.ShowError("Failed to update user data")
-                    );
+                    var userService = AppCoordinator.Instance?.UserService;
+                    if (userService != null && UserDataManager.Instance != null)
+                    {
+                        userService.GetUserData(
+                            UserDataManager.Instance.CurrentUser.username,
+                            userData => UserDataManager.Instance.UpdateUserData(userData),
+                            error => EventSystem.ShowError("Failed to update user data")
+                        );
+                    }
                 },
                 error => {
                     EventSystem.ShowError(error);

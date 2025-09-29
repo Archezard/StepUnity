@@ -59,18 +59,8 @@ namespace BasketballCards.UI.Views
         
         public void OnPointerClick(PointerEventData eventData)
         {
-            if (eventData.clickCount == 2)
-            {
-                // Двойной клик - открываем 3D просмотр
-                BasketballCards.Core.EventSystem.RequestCardView(_cardData);
-            }
-            else
-            {
-                // Одинарный клик - выделение для крафта/разбора
-                _isSelected = !_isSelected;
-                _selectionBorder.gameObject.SetActive(_isSelected);
-                _onToggleAction?.Invoke(_cardData, _isSelected);
-            }
+            // карточка открывается в 3D просмотре
+            BasketballCards.Core.EventSystem.RequestCardView(_cardData);
         }
     }
 }

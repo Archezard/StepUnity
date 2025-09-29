@@ -15,8 +15,8 @@ namespace BasketballCards.UI.Presenters
         {
             base.SubscribeToEvents();
             
-            EventSystem.OnTeamSetupRequested += HandleTeamSetupRequested;
-            EventSystem.OnTacticsChanged += HandleTacticsChanged;
+            //EventSystem.OnTeamSetupRequested += HandleTeamSetupRequested;
+            //EventSystem.OnTacticsChanged += HandleTacticsChanged;
             
             // Подписка на события данных пользователя
             UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
@@ -26,8 +26,8 @@ namespace BasketballCards.UI.Presenters
         {
             base.UnsubscribeFromEvents();
             
-            EventSystem.OnTeamSetupRequested -= HandleTeamSetupRequested;
-            EventSystem.OnTacticsChanged -= HandleTacticsChanged;
+            //EventSystem.OnTeamSetupRequested -= HandleTeamSetupRequested;
+            //EventSystem.OnTacticsChanged -= HandleTacticsChanged;
             
             if (UserDataManager.Instance != null)
             {
@@ -90,12 +90,12 @@ namespace BasketballCards.UI.Presenters
         
         private void OnTeamSetupRequested()
         {
-            EventSystem.RequestTeamSetup();
+            //EventSystem.RequestTeamSetup();
         }
         
         private void OnTacticsRequested()
         {
-            EventSystem.ChangeTactics();
+            //EventSystem.ChangeTactics();
         }
         
         private void OnLeaderboardRequested()

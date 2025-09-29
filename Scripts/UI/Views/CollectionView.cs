@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public class CollectionView : BaseView
+    public class CollectionView : BaseView, ICollectionView
     {
         [Header("UI References")]
         [SerializeField] private ScrollRect _scrollRect;
@@ -19,8 +19,6 @@ namespace BasketballCards.UI.Views
         [SerializeField] private Button _disassembleButton;
         [SerializeField] private Button _filterButton;
         [SerializeField] private TMP_InputField _searchInputField;
-        [SerializeField] private GameObject _cardDetailsPanel;
-        [SerializeField] private CardViewer3D _cardViewer;
         
         [Header("Filter UI")]
         [SerializeField] private GameObject _filterPanel;
@@ -31,9 +29,6 @@ namespace BasketballCards.UI.Views
         [SerializeField] private Button _diamondFilterButton;
         [SerializeField] private Button _legendaryFilterButton;
 
-        [Header("3D Card Viewer")]
-        [SerializeField] private CardViewer3D _cardViewer3D;
-        
         private CollectionPresenter _presenter;
         private List<CardItemView> _cardViews = new List<CardItemView>();
         private List<CardData> _currentCards;
@@ -42,15 +37,6 @@ namespace BasketballCards.UI.Views
         
         public void Initialize(CollectionPresenter presenter)
         {
-
-            _presenter = presenter;
-        
-            // Инициализация CardViewer3D
-            if (_cardViewer3D != null)
-            {
-                _cardViewer3D.Initialize();
-            }
-
             _presenter = presenter;
             
             // Инициализация кнопок
@@ -61,18 +47,6 @@ namespace BasketballCards.UI.Views
             
             // Инициализация фильтров
             InitializeFilters();
-            
-            // Инициализация CardViewer
-            if (_cardViewer != null)
-            {
-                _cardViewer.Initialize();
-            }
-            
-            // Скрываем панель деталей при старте
-            if (_cardDetailsPanel != null)
-            {
-                _cardDetailsPanel.SetActive(false);
-            }
             
             // Скрываем панель фильтров
             if (_filterPanel != null)
@@ -97,6 +71,53 @@ namespace BasketballCards.UI.Views
         {
             _currentCards = cards;
             ApplyFiltersAndSearch();
+        }
+        
+    
+        public void ShowCardDetails(CardData card)
+        {
+            // Прямой вызов CardViewerPresenter через презентер
+            _presenter.OnCardSelectedInView(card);
+        }
+        
+        public void UpdateSelectionCount(int count)
+        {
+            _selectionInfoText.text = $"Выбрано: {count}";
+            _craftButton.interactable = count >= 10;
+            _disassembleButton.interactable = count > 0;
+        }
+        
+        public void OnCardUpgraded(CardData card)
+        {
+            // Находим View этой карточки и обновляем ее
+            var cardView = _cardViews.Find(c => c.CardId == card.CardId);
+            if (cardView != null)
+            {
+                cardView.UpdateCardData(card);
+            }
+            
+            ShowSuccess($"Карточка улучшена до уровня {card.Level}!");
+        }
+        
+        public void OnCardCrafted(CardData card)
+        {
+            // Добавляем новую карточку в коллекцию
+            _currentCards.Add(card);
+            ApplyFiltersAndSearch();
+            
+            // Показываем новую карточку
+            ShowCardDetails(card);
+            
+            ShowSuccess($"Успешно скрафчена карточка: {card.PlayerName}!");
+        }
+        
+        public void ClearSelection()
+        {
+            foreach (var cardView in _cardViews)
+            {
+                cardView.SetSelected(false);
+            }
+            UpdateSelectionCount(0);
         }
         
         private void ApplyFiltersAndSearch()
@@ -132,98 +153,6 @@ namespace BasketballCards.UI.Views
                     _cardViews.Add(cardView);
                 }
             }
-            
-            // Обновляем информацию о количестве
-            UpdateCardsCount(filteredCards.Count, _currentCards.Count);
-        }
-        
-        private void UpdateCardsCount(int filteredCount, int totalCount)
-        {
-            string countText = $"Показано: {filteredCount}";
-            if (filteredCount != totalCount)
-            {
-                countText += $" из {totalCount}";
-            }
-            
-            // Можно добавить TextMeshProUGUI для отображения количества
-            Debug.Log(countText);
-        }
-        
-        public void ShowCardDetails(CardData card)
-        {
-            // Используем CardViewer3D для просмотра карточки
-            if (_cardViewer3D != null)
-            {
-                _cardViewer3D.ShowCard(card);
-            }
-            else
-            {
-                // Fallback: показываем обычную панель деталей
-                if (_cardDetailsPanel != null)
-                {
-                    _cardDetailsPanel.SetActive(true);
-                    // ... настройка панели ...
-                }
-            }
-        }
-        
-        public void UpdateSelectionCount(int count)
-        {
-            _selectionInfoText.text = $"Выбрано: {count}";
-            _craftButton.interactable = count >= 10;
-            _disassembleButton.interactable = count > 0;
-            
-            // Обновляем текст на кнопках
-            var craftText = _craftButton.GetComponentInChildren<TextMeshProUGUI>();
-            if (craftText != null)
-            {
-                craftText.text = count >= 10 ? "Крафт (10)" : $"Крафт ({count}/10)";
-            }
-            
-            var disassembleText = _disassembleButton.GetComponentInChildren<TextMeshProUGUI>();
-            if (disassembleText != null)
-            {
-                disassembleText.text = count > 0 ? $"Разобрать ({count})" : "Разобрать";
-            }
-        }
-        
-        public void OnCardUpgraded(CardData card)
-        {
-            // Находим View этой карточки и обновляем ее
-            var cardView = _cardViews.Find(c => c.CardId == card.CardId);
-            if (cardView != null)
-            {
-                cardView.UpdateCardData(card);
-            }
-            
-            // Скрываем панель деталей
-            if (_cardDetailsPanel != null)
-            {
-                _cardDetailsPanel.SetActive(false);
-            }
-            
-            ShowSuccess($"Карточка улучшена до уровня {card.Level}!");
-        }
-        
-        public void OnCardCrafted(CardData card)
-        {
-            // Добавляем новую карточку в коллекцию
-            _currentCards.Add(card);
-            ApplyFiltersAndSearch();
-            
-            // Показываем новую карточку
-            ShowCardDetails(card);
-            
-            ShowSuccess($"Успешно скрафчена карточка: {card.PlayerName}!");
-        }
-        
-        public void ClearSelection()
-        {
-            foreach (var cardView in _cardViews)
-            {
-                cardView.SetSelected(false);
-            }
-            UpdateSelectionCount(0);
         }
         
         private void ClearCards()
@@ -242,22 +171,18 @@ namespace BasketballCards.UI.Views
         
         private void OnCardToggled(CardData card, bool isSelected)
         {
-            _presenter.OnCardToggleSelectedInView(card, isSelected);
+            // Обработка выбора карточек для крафта/разбора
+            // TODO: Реализовать логику выбора
         }
         
         private void OnCraftButtonClicked()
         {
-            _presenter.OnCraftRequestedInView();
+            // TODO: Реализовать логику крафта
         }
         
         private void OnDisassembleButtonClicked()
         {
-            _presenter.OnDisassembleRequestedInView();
-        }
-        
-        private void OnUpgradeCardRequested(CardData card)
-        {
-            _presenter.OnUpgradeCardRequestedInView(card);
+            // TODO: Реализовать логику разбора
         }
         
         private void OnFilterButtonClicked()
@@ -273,9 +198,6 @@ namespace BasketballCards.UI.Views
             _currentFilter = rarity;
             ApplyFiltersAndSearch();
             
-            // Обновляем визуальное состояние кнопок фильтров
-            UpdateFilterButtonsState();
-            
             // Скрываем панель фильтров
             if (_filterPanel != null)
             {
@@ -283,58 +205,10 @@ namespace BasketballCards.UI.Views
             }
         }
         
-        private void UpdateFilterButtonsState()
-        {
-            // Сбрасываем все кнопки
-            _allCategoriesButton.interactable = true;
-            _bronzeFilterButton.interactable = true;
-            _silverFilterButton.interactable = true;
-            _goldFilterButton.interactable = true;
-            _diamondFilterButton.interactable = true;
-            _legendaryFilterButton.interactable = true;
-            
-            // Деактивируем текущий фильтр
-            if (!_currentFilter.HasValue)
-            {
-                _allCategoriesButton.interactable = false;
-            }
-            else
-            {
-                switch (_currentFilter.Value)
-                {
-                    case Rarity.Bronze: _bronzeFilterButton.interactable = false; break;
-                    case Rarity.Silver: _silverFilterButton.interactable = false; break;
-                    case Rarity.Gold: _goldFilterButton.interactable = false; break;
-                    case Rarity.Diamond: _diamondFilterButton.interactable = false; break;
-                    case Rarity.Legendary: _legendaryFilterButton.interactable = false; break;
-                }
-            }
-        }
-        
         private void OnSearchInputChanged(string searchQuery)
         {
             _currentSearchQuery = searchQuery;
             ApplyFiltersAndSearch();
-        }
-        
-        protected override void OnBackButtonClicked()
-        {
-            // Если открыта панель деталей, скрываем ее
-            if (_cardDetailsPanel != null && _cardDetailsPanel.activeSelf)
-            {
-                _cardDetailsPanel.SetActive(false);
-                return;
-            }
-            
-            // Если открыта панель фильтров, скрываем ее
-            if (_filterPanel != null && _filterPanel.activeSelf)
-            {
-                _filterPanel.SetActive(false);
-                return;
-            }
-            
-            // Иначе возвращаемся в главное меню
-            EventSystem.NavigateBack();
         }
         
         public override void Show()
@@ -345,13 +219,8 @@ namespace BasketballCards.UI.Views
             _currentFilter = null;
             _currentSearchQuery = "";
             _searchInputField.text = "";
-            UpdateFilterButtonsState();
             
             // Скрываем дополнительные панели
-            if (_cardDetailsPanel != null)
-            {
-                _cardDetailsPanel.SetActive(false);
-            }
             if (_filterPanel != null)
             {
                 _filterPanel.SetActive(false);
@@ -366,10 +235,6 @@ namespace BasketballCards.UI.Views
             base.Hide();
             
             // Скрываем все дополнительные панели
-            if (_cardDetailsPanel != null)
-            {
-                _cardDetailsPanel.SetActive(false);
-            }
             if (_filterPanel != null)
             {
                 _filterPanel.SetActive(false);

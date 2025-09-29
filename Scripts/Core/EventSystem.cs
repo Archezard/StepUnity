@@ -15,14 +15,12 @@ namespace BasketballCards.Core
         public static event Action<UserData> OnUserDataUpdated;
         
         // События карточек
-        public static event Action<CardData> OnCardSelected;
+        public static event Action<CardData> OnCardViewRequested;
         public static event Action<CardData> OnCardUpgraded;
         public static event Action<List<CardData>> OnCardsCrafted;
         public static event Action<List<CardData>> OnCardsDisassembled;
         public static event Action<CardData> OnCardReceived;
 
-        public static event Action<CardData> OnCardViewRequested;
-        
         // События магазина
         public static event Action<ShopItem> OnShopItemPurchased;
         public static event Action<ShopCategory> OnShopCategoryChanged;
@@ -32,11 +30,11 @@ namespace BasketballCards.Core
         public static event Action OnBallThrowRequested;
         public static event Action<string> OnPackOpenRequested;
 
-        public static event Action OnCraftRequested;
-        public static event Action OnDisassembleRequested;
-        public static event Action OnUpgradeRequested;
-        public static event Action OnTeamSetupRequested;
-        public static event Action OnTacticsChanged;
+        // События внутренней навигации
+        public static event Action<CollectionSubScreen> OnCollectionSubScreenChanged;
+        public static event Action<ActivitiesSubScreen> OnActivitiesSubScreenChanged;
+        public static event Action<ShopSubScreen> OnShopSubScreenChanged;
+        public static event Action<BattlePassSubScreen> OnBattlePassSubScreenChanged;
         
         // События баттл-пасса
         public static event Action<int, bool> OnBattlePassRewardClaimed;
@@ -52,9 +50,7 @@ namespace BasketballCards.Core
 
         public static void UpdateUserData(UserData userData) => OnUserDataUpdated?.Invoke(userData);
         
-
         public static void RequestCardView(CardData card) => OnCardViewRequested?.Invoke(card);
-        public static void SelectCard(CardData card) => OnCardSelected?.Invoke(card);
         public static void UpgradeCard(CardData card) => OnCardUpgraded?.Invoke(card);
         public static void CraftCards(List<CardData> cards) => OnCardsCrafted?.Invoke(cards);
         public static void DisassembleCards(List<CardData> cards) => OnCardsDisassembled?.Invoke(cards);
@@ -67,12 +63,13 @@ namespace BasketballCards.Core
         public static void RequestBallThrow() => OnBallThrowRequested?.Invoke();
         public static void RequestPackOpen(string packId) => OnPackOpenRequested?.Invoke(packId);
 
-        public static void RequestCraft() => OnCraftRequested?.Invoke();
-        public static void RequestDisassemble() => OnDisassembleRequested?.Invoke();
-        public static void RequestUpgrade() => OnUpgradeRequested?.Invoke();
-        public static void RequestTeamSetup() => OnTeamSetupRequested?.Invoke();
-        public static void ChangeTactics() => OnTacticsChanged?.Invoke();
+        // Методы для внутренней навигации
+        public static void ChangeCollectionSubScreen(CollectionSubScreen subScreen) => OnCollectionSubScreenChanged?.Invoke(subScreen);
+        public static void ChangeActivitiesSubScreen(ActivitiesSubScreen subScreen) => OnActivitiesSubScreenChanged?.Invoke(subScreen);
+        public static void ChangeShopSubScreen(ShopSubScreen subScreen) => OnShopSubScreenChanged?.Invoke(subScreen);
+        public static void ChangeBattlePassSubScreen(BattlePassSubScreen subScreen) => OnBattlePassSubScreenChanged?.Invoke(subScreen);
         
+        // Методы для баттл-пасса
         public static void ClaimBattlePassReward(int level, bool isPremium) => OnBattlePassRewardClaimed?.Invoke(level, isPremium);
         public static void PurchaseBattlePassPremium() => OnBattlePassPremiumPurchased?.Invoke();
         
@@ -88,5 +85,34 @@ namespace BasketballCards.Core
         FiveOnFive,
         BattlePass,
         Profile
+    }
+
+    public enum CollectionSubScreen
+    {
+        Collection,
+        Workshop,
+        Album,
+        Exchange
+    }
+
+    public enum ActivitiesSubScreen
+    {
+        GetCard,
+        ThrowBall,
+        OpenPack
+    }
+
+    public enum ShopSubScreen
+    {
+        Cards,
+        Throws,
+        Packs,
+        Currency
+    }
+
+    public enum BattlePassSubScreen
+    {
+        Tasks,
+        Rewards
     }
 }

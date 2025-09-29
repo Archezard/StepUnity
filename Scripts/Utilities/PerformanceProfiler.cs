@@ -34,10 +34,10 @@ namespace BasketballCards.Managers
         {
             if (!_enableProfiler) return;
             
-            // Calculate FPS
+            // FPS
             _deltaTime += (Time.unscaledDeltaTime - _deltaTime) * 0.1f;
             
-            // Update at intervals
+            // Update интервальный
             if (Time.unscaledTime >= _nextUpdateTime)
             {
                 UpdateProfilerInfo();
@@ -47,15 +47,15 @@ namespace BasketballCards.Managers
         
         private void UpdateProfilerInfo()
         {
-            // Update FPS
+            // FPS
             float fps = 1.0f / _deltaTime;
             _fpsText.text = $"FPS: {fps:0.}";
             
-            // Update memory
+            // memory
             long memory = System.GC.GetTotalMemory(false) / 1024 / 1024;
             _memoryText.text = $"Memory: {memory} MB";
             
-            // Add other performance metrics as needed
+            // Можно добавить что-то ещё если надо
         }
         
         public void ToggleProfiler()

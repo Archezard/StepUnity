@@ -42,14 +42,18 @@ namespace BasketballCards.UI.Presenters
             }
         }
         
-        // ИСПРАВЛЕНО: Добавлен параметр UserData
         protected virtual void HandleUserDataUpdated(UserData userData)
         {
-            // Базовая реализация - может быть переопределена
-            // По умолчанию ничего не делаем, но метод должен соответствовать делегату
+            // Базовая реализация
         }
         
         public abstract void Show();
         public abstract void Hide();
+        
+        // Вспомогательный метод для проверки активности
+        public bool IsActive()
+        {
+            return gameObject.activeInHierarchy;
+        }
     }
 }

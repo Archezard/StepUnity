@@ -23,8 +23,5 @@ namespace BasketballCards.UI.Views
             _packShopButton.onClick.AddListener(() => OnPackShopSelected?.Invoke());
             _currencyShopButton.onClick.AddListener(() => OnCurrencyShopSelected?.Invoke());
         }
-        
-        // НЕ ПЕРЕОПРЕДЕЛЯЕМ OnBackButtonClicked - используем реализацию из ShopViewBase
-        // которая вызывает EventSystem.NavigateBack()
     }
 }

@@ -1,3 +1,4 @@
+using BasketballCards.UI.Presenters;
 using UnityEngine;
 
 namespace BasketballCards.Core
@@ -8,6 +9,15 @@ namespace BasketballCards.Core
         
         private AppScreen _currentScreen;
         private AppScreen _previousScreen;
+        
+        // Ссылки на презентеры для управления их видимостью
+        private CollectionPresenter _collectionPresenter;
+        private ShopPresenter _shopPresenter;
+        private ActivitiesPresenter _activitiesPresenter;
+        private FiveOnFivePresenter _fiveOnFivePresenter;
+        private BattlePassPresenter _battlePassPresenter;
+        private ProfilePresenter _profilePresenter;
+        private CardViewerPresenter _cardViewerPresenter;
         
         private void Awake()
         {
@@ -20,7 +30,8 @@ namespace BasketballCards.Core
             Instance = this;
             DontDestroyOnLoad(gameObject);
             
-            // Подписка на навигационные события
+            FindPresenters();
+            
             EventSystem.OnNavigationRequested += HandleNavigationRequest;
             EventSystem.OnBackNavigationRequested += HandleBackNavigation;
         }
@@ -31,44 +42,76 @@ namespace BasketballCards.Core
             EventSystem.OnBackNavigationRequested -= HandleBackNavigation;
         }
         
+        private void FindPresenters()
+        {
+            _collectionPresenter = FindFirstObjectByType<CollectionPresenter>();
+            _shopPresenter = FindFirstObjectByType<ShopPresenter>();
+            _activitiesPresenter = FindFirstObjectByType<ActivitiesPresenter>();
+            _fiveOnFivePresenter = FindFirstObjectByType<FiveOnFivePresenter>();
+            _battlePassPresenter = FindFirstObjectByType<BattlePassPresenter>();
+            _profilePresenter = FindFirstObjectByType<ProfilePresenter>();
+            _cardViewerPresenter = FindFirstObjectByType<CardViewerPresenter>();
+        }
+        
         private void HandleNavigationRequest(AppScreen screen)
         {
             _previousScreen = _currentScreen;
             _currentScreen = screen;
             
-            // Здесь будет логика переключения между экранами
-            Debug.Log($"Navigation: {_previousScreen} -> {_currentScreen}");
+            // Скрываем все презентеры
+            HideAllPresenters();
             
-            // Вызываем события для презентеров
+            // Показываем запрошенный презентер
             switch (screen)
             {
                 case AppScreen.Collection:
-                    // CollectionPresenter.Show();
+                    _collectionPresenter?.Show();
                     break;
                 case AppScreen.Shop:
-                    // ShopPresenter.Show();
+                    _shopPresenter?.Show();
                     break;
                 case AppScreen.Activities:
-                    // ActivitiesPresenter.Show();
+                    _activitiesPresenter?.Show();
                     break;
                 case AppScreen.FiveOnFive:
-                    // FiveOnFivePresenter.Show();
+                    _fiveOnFivePresenter?.Show();
                     break;
                 case AppScreen.BattlePass:
-                    // BattlePassPresenter.Show();
+                    _battlePassPresenter?.Show();
                     break;
                 case AppScreen.Profile:
-                    // ProfilePresenter.Show();
+                    _profilePresenter?.Show();
                     break;
             }
+            
+            Debug.Log($"Navigation: {_previousScreen} -> {_currentScreen}");
         }
         
         private void HandleBackNavigation()
         {
+            // Если CardViewerPresenter активен, скрываем его
+            if (_cardViewerPresenter != null && _cardViewerPresenter.isActiveAndEnabled)
+            {
+                _cardViewerPresenter.Hide();
+                return;
+            }
+            
+            // Иначе возвращаемся к предыдущему экрану
             if (_previousScreen != _currentScreen)
             {
                 HandleNavigationRequest(_previousScreen);
             }
+        }
+        
+        private void HideAllPresenters()
+        {
+            _collectionPresenter?.Hide();
+            _shopPresenter?.Hide();
+            _activitiesPresenter?.Hide();
+            _fiveOnFivePresenter?.Hide();
+            _battlePassPresenter?.Hide();
+            _profilePresenter?.Hide();
+            _cardViewerPresenter?.Hide();
         }
         
         public AppScreen GetCurrentScreen() => _currentScreen;
