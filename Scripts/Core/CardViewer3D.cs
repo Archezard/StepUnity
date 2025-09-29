@@ -16,10 +16,10 @@ namespace BasketballCards.Core
         [SerializeField] private GameObject _cardDisplayPanel;
         [SerializeField] private Image _cardDisplayImage;
         [SerializeField] private Image _playerImage;
-        [SerializeField] private TextMeshProUGUI _playerNameText;
-        [SerializeField] private TextMeshProUGUI _attackText;
-        [SerializeField] private TextMeshProUGUI _defenseText;
-        [SerializeField] private TextMeshProUGUI _staminaText;
+        [SerializeField] private TextMeshPro _playerNameText;
+        [SerializeField] private TextMeshPro _attackText;
+        [SerializeField] private TextMeshPro _defenseText;
+        [SerializeField] private TextMeshPro _staminaText;
         [SerializeField] private Button _closeButton;
         [SerializeField] private Button _resetRotationButton;
         

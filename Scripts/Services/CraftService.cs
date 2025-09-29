@@ -54,7 +54,7 @@ namespace BasketballCards.Services
         
         public void DisassembleCards(List<string> cardIds, Action<DisassembleResult> onSuccess, Action<string> onError = null)
         {
-            // ЗАГЛУШКА: В реальности здесь будет запрос к API
+            // После тут будет запрос к API
             Debug.Log($"Disassembling {cardIds.Count} cards (stub)");
             
             // Симуляция разбора
