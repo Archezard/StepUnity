@@ -1,29 +1,37 @@
-using BasketballCards.UI.Presenters;
+using BasketballCards.Core;
+using BasketballCards.Services;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public class ThrowBallView : MonoBehaviour
+    public class ThrowBallView : BaseView
     {
         [Header("UI References")]
         [SerializeField] private Button _throwButton;
-        [SerializeField] private Button _backButton;
         [SerializeField] private TextMeshProUGUI _ballsCountText;
         [SerializeField] private GameObject _hoop;
         [SerializeField] private GameObject _ball;
+        [SerializeField] private TextMeshProUGUI _scoreText;
         
-        private ActivitiesPresenter _presenter;
+        private ActivitiesService _activitiesService;
+        private int _currentScore = 0;
         
-        public void Initialize(ActivitiesPresenter presenter)
+        public System.Action OnBackRequested;
+        
+        public void Initialize(ActivitiesService activitiesService)
         {
-            _presenter = presenter;
+            _activitiesService = activitiesService;
             
             _throwButton.onClick.AddListener(OnThrowButtonClicked);
-            _backButton.onClick.AddListener(OnBackButtonClicked);
-            
             UpdateBallsCount(5);
+            UpdateScore();
+        }
+        
+        protected override void OnBackButtonClicked()
+        {
+            OnBackRequested?.Invoke();
         }
         
         private void UpdateBallsCount(int count)
@@ -32,29 +40,40 @@ namespace BasketballCards.UI.Views
             _throwButton.interactable = count > 0;
         }
         
+        private void UpdateScore()
+        {
+            _scoreText.text = $"Счёт: {_currentScore}";
+        }
+        
         private void OnThrowButtonClicked()
         {
-            _presenter.ThrowBall();
+            EventSystem.RequestBallThrow();
         }
         
-        private void OnBackButtonClicked()
+        public void ShowThrowResult(int score, int rewards)
         {
-            _presenter.ShowActivities();
+            _currentScore += score;
+            UpdateScore();
+            
+            if (score > 0)
+            {
+                ShowSuccess($"Попадание! +{score} очков");
+                if (rewards > 0)
+                {
+                    ShowSuccess($"Получено наград: {rewards}");
+                }
+            }
+            else
+            {
+                ShowError("Промах!");
+            }
         }
         
-        public void Show()
+        public override void Show()
         {
-            gameObject.SetActive(true);
-        }
-        
-        public void Hide()
-        {
-            gameObject.SetActive(false);
-        }
-        
-        public void ShowError(string error)
-        {
-            Debug.LogError($"ThrowBall Error: {error}");
+            base.Show();
+            _currentScore = 0;
+            UpdateScore();
         }
     }
 }

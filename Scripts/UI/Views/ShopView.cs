@@ -1,65 +1,30 @@
-using BasketballCards.Managers;
-using BasketballCards.UI.Presenters;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public class ShopView : MonoBehaviour
+    public class ShopView : ShopViewBase
     {
-        [Header("UI References")]
+        [Header("Category Buttons")]
         [SerializeField] private Button _cardShopButton;
         [SerializeField] private Button _throwShopButton;
         [SerializeField] private Button _packShopButton;
         [SerializeField] private Button _currencyShopButton;
-        [SerializeField] private Button _backButton;
         
-        private ShopPresenter _presenter;
+        public System.Action OnCardShopSelected;
+        public System.Action OnThrowShopSelected;
+        public System.Action OnPackShopSelected;
+        public System.Action OnCurrencyShopSelected;
         
-        public void Initialize(ShopPresenter presenter)
+        public void Initialize()
         {
-            _presenter = presenter;
-            
-            _cardShopButton.onClick.AddListener(OnCardShopButtonClicked);
-            _throwShopButton.onClick.AddListener(OnThrowShopButtonClicked);
-            _packShopButton.onClick.AddListener(OnPackShopButtonClicked);
-            _currencyShopButton.onClick.AddListener(OnCurrencyShopButtonClicked);
-            _backButton.onClick.AddListener(OnBackButtonClicked);
+            _cardShopButton.onClick.AddListener(() => OnCardShopSelected?.Invoke());
+            _throwShopButton.onClick.AddListener(() => OnThrowShopSelected?.Invoke());
+            _packShopButton.onClick.AddListener(() => OnPackShopSelected?.Invoke());
+            _currencyShopButton.onClick.AddListener(() => OnCurrencyShopSelected?.Invoke());
         }
         
-        private void OnCardShopButtonClicked()
-        {
-            _presenter.ShowCardShop();
-        }
-        
-        private void OnThrowShopButtonClicked()
-        {
-            _presenter.ShowThrowShop();
-        }
-        
-        private void OnPackShopButtonClicked()
-        {
-            _presenter.ShowPackShop();
-        }
-        
-        private void OnCurrencyShopButtonClicked()
-        {
-            _presenter.ShowCurrencyShop();
-        }
-        
-        private void OnBackButtonClicked()
-        {
-            UIManager.Instance.ShowMainMenu();
-        }
-        
-        public void Show()
-        {
-            gameObject.SetActive(true);
-        }
-        
-        public void Hide()
-        {
-            gameObject.SetActive(false);
-        }
+        // НЕ ПЕРЕОПРЕДЕЛЯЕМ OnBackButtonClicked - используем реализацию из ShopViewBase
+        // которая вызывает EventSystem.NavigateBack()
     }
 }

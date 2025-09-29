@@ -46,6 +46,149 @@ namespace BasketballCards.Services
                 {
                     CardId = "2",
                     PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
+                    Rarity = Rarity.Gold,
+                    Type = CardType.Playable,
+                    Level = 2,
+                    MaxLevel = 5,
+                    Attack = 98,
+                    Defense = 75,
+                    Stamina = 85,
+                    Duplicates = 1
+                },
+                new CardData
+                {
+                    CardId = "2",
+                    PlayerName = "Stephen Curry",
                     Rarity = Rarity.Silver,
                     Type = CardType.Playable,
                     Level = 2,

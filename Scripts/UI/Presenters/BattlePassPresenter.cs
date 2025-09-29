@@ -2,116 +2,237 @@ using BasketballCards.Core;
 using BasketballCards.Models;
 using BasketballCards.Services;
 using BasketballCards.UI.Views;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace BasketballCards.UI.Presenters
 {
-    public class BattlePassPresenter : MonoBehaviour
+    public class BattlePassPresenter : BasePresenter
     {
         [Header("View References")]
         [SerializeField] private BattlePassView _battlePassView;
         [SerializeField] private TasksView _tasksView;
         [SerializeField] private RewardsView _rewardsView;
         
-        [Header("Service References")]
-        [SerializeField] private BattlePassService _battlePassService;
-        
-        private GameManager _gameManager;
+        private List<BaseView> _allViews = new List<BaseView>();
+        private BaseView _currentView;
         private BattlePassProgress _currentProgress;
         
-        public void Initialize(GameManager gameManager)
+        protected override void SubscribeToEvents()
         {
-            _gameManager = gameManager;
-            _battlePassService = _gameManager.BattlePassService;
+            base.SubscribeToEvents();
+            
+            EventSystem.OnBattlePassRewardClaimed += HandleRewardClaimed;
+            EventSystem.OnBattlePassPremiumPurchased += HandlePremiumPurchased;
+            EventSystem.OnErrorOccurred += HandleError;
+            
+            // Подписка на события данных пользователя
+            UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
+            UserDataManager.Instance.OnCurrencyChanged += HandleCurrencyChanged;
+            UserDataManager.Instance.OnDiamondsChanged += HandleDiamondsChanged;
+        }
+        
+        protected override void UnsubscribeFromEvents()
+        {
+            base.UnsubscribeFromEvents();
+            
+            EventSystem.OnBattlePassRewardClaimed -= HandleRewardClaimed;
+            EventSystem.OnBattlePassPremiumPurchased -= HandlePremiumPurchased;
+            EventSystem.OnErrorOccurred -= HandleError;
+            
+            if (UserDataManager.Instance != null)
+            {
+                UserDataManager.Instance.OnUserDataUpdated -= HandleUserDataUpdated;
+                UserDataManager.Instance.OnCurrencyChanged -= HandleCurrencyChanged;
+                UserDataManager.Instance.OnDiamondsChanged -= HandleDiamondsChanged;
+            }
+        }
+        
+        private void Start()
+        {
+            // Собираем все View
+            _allViews.Add(_battlePassView);
+            _allViews.Add(_tasksView);
+            _allViews.Add(_rewardsView);
             
             // Инициализация View
-            _battlePassView.Initialize(this);
-            _tasksView.Initialize(this, _battlePassService);
-            _rewardsView.Initialize(this, _battlePassService);
+            InitializeViews();
+            
+            // Скрываем все View при старте
+            HideAllViews();
             
             // Загрузка прогресса
             LoadBattlePassProgress();
+        }
+        
+        private void InitializeViews()
+        {
+            if (_battlePassView != null)
+            {
+                _battlePassView.Initialize();
+                _battlePassView.OnTasksSelected += () => ShowSubView(_tasksView);
+                _battlePassView.OnRewardsSelected += () => ShowSubView(_rewardsView);
+                _battlePassView.OnPremiumPurchaseSelected += OnPremiumPurchaseRequested;
+            }
             
-            // Скрываем все подразделы, показываем только основной
-            HideAllSubsections();
-            _battlePassView.Show();
+            if (_tasksView != null)
+            {
+                _tasksView.Initialize(AppCoordinator.Instance.BattlePassService);
+                _tasksView.OnBackRequested += () => ShowSubView(_battlePassView);
+            }
             
-            Debug.Log("BattlePassPresenter: Initialized");
+            if (_rewardsView != null)
+            {
+                _rewardsView.Initialize(AppCoordinator.Instance.BattlePassService);
+                _rewardsView.OnBackRequested += () => ShowSubView(_battlePassView);
+                _rewardsView.OnRewardClaimed += OnRewardClaimRequested;
+            }
         }
         
-        public void ShowBattlePass()
+        public override void Show()
         {
-            HideAllSubsections();
-            _battlePassView.Show();
+            ShowSubView(_battlePassView);
+            
+            // Обновляем данные при показе
+            LoadBattlePassProgress();
         }
         
-        public void ShowTasks()
+        public override void Hide()
         {
-            HideAllSubsections();
-            _tasksView.Show();
+            HideAllViews();
         }
         
-        public void ShowRewards()
+        private void ShowSubView(BaseView view)
         {
-            HideAllSubsections();
-            _rewardsView.Show();
+            if (view == null) return;
+            
+            // Скрываем текущее View
+            if (_currentView != null)
+            {
+                _currentView.Hide();
+            }
+            
+            // Показываем новое View
+            _currentView = view;
+            _currentView.Show();
+            
+            // Если показываем rewards view, обновляем данные
+            if (view is RewardsView rewardsView && _currentProgress != null)
+            {
+                rewardsView.DisplayRewards(_currentProgress);
+            }
         }
         
-        private void HideAllSubsections()
+        private void HideAllViews()
         {
-            _battlePassView.Hide();
-            _tasksView.Hide();
-            _rewardsView.Hide();
+            foreach (var view in _allViews)
+            {
+                if (view != null)
+                {
+                    view.Hide();
+                }
+            }
+            _currentView = null;
+        }
+        
+        protected override void HandleUserDataUpdated(UserData userData)
+        {
+            // При обновлении данных пользователя перезагружаем прогресс баттл-пасса
+            LoadBattlePassProgress();
         }
         
         private void LoadBattlePassProgress()
         {
-            _battlePassService.GetBattlePassProgress(
+            AppCoordinator.Instance.BattlePassService.GetBattlePassProgress(
                 progress => {
                     _currentProgress = progress;
-                    _battlePassView.DisplayProgress(progress);
-                    _rewardsView.DisplayRewards(progress);
+                    UpdateBattlePassUI();
                 },
                 error => {
-                    Debug.LogError("Failed to load battle pass progress: " + error);
+                    EventSystem.ShowError($"Failed to load battle pass progress: {error}");
                 });
         }
         
-        public void OnRewardClaimed(int level, bool isPremium)
+        private void UpdateBattlePassUI()
         {
-            _battlePassService.ClaimReward(level, isPremium,
+            if (_battlePassView != null && _currentProgress != null)
+            {
+                _battlePassView.DisplayProgress(_currentProgress);
+            }
+            
+            if (_rewardsView != null && _currentProgress != null)
+            {
+                _rewardsView.DisplayRewards(_currentProgress);
+            }
+        }
+        
+        private void OnRewardClaimRequested(int level, bool isPremium)
+        {
+            EventSystem.ClaimBattlePassReward(level, isPremium);
+        }
+        
+        private void OnPremiumPurchaseRequested()
+        {
+            EventSystem.PurchaseBattlePassPremium();
+        }
+        
+        private void HandleRewardClaimed(int level, bool isPremium)
+        {
+            AppCoordinator.Instance.BattlePassService.ClaimReward(level, isPremium,
                 reward => {
+                    EventSystem.ShowSuccess($"Награда уровня {level} получена!");
+                    
                     // Обновляем данные пользователя
-                    _gameManager.UserService.GetUserData(_gameManager.CurrentUser.username, 
-                        userData => {
-                            _gameManager.SetCurrentUser(userData);
-                            LoadBattlePassProgress(); // Перезагружаем прогресс
-                        },
-                        error => {
-                            Debug.LogError("Failed to update user data: " + error);
-                        });
+                    AppCoordinator.Instance.UserService.GetUserData(
+                        UserDataManager.Instance.CurrentUser.username,
+                        userData => UserDataManager.Instance.UpdateUserData(userData),
+                        error => EventSystem.ShowError("Failed to update user data")
+                    );
+                    
+                    // Перезагружаем прогресс
+                    LoadBattlePassProgress();
                 },
                 error => {
-                    Debug.LogError("Failed to claim reward: " + error);
+                    EventSystem.ShowError($"Failed to claim reward: {error}");
                 });
         }
         
-        public void OnPremiumPurchased()
+        private void HandlePremiumPurchased()
         {
-            _battlePassService.PurchasePremium(
+            AppCoordinator.Instance.BattlePassService.PurchasePremium(
                 success => {
                     if (success)
                     {
+                        EventSystem.ShowSuccess("Премиум баттл-пасс активирован!");
                         LoadBattlePassProgress(); // Перезагружаем прогресс
                     }
                     else
                     {
-                        Debug.LogError("Failed to purchase premium battle pass");
+                        EventSystem.ShowError("Failed to purchase premium battle pass");
                     }
                 },
                 error => {
-                    Debug.LogError("Failed to purchase premium battle pass: " + error);
+                    EventSystem.ShowError($"Failed to purchase premium battle pass: {error}");
                 });
+        }
+        
+        private void HandleCurrencyChanged(int oldGold, int newGold)
+        {
+            // Обновление UI при изменении валюты
+        }
+        
+        private void HandleDiamondsChanged(int oldDiamonds, int newDiamonds)
+        {
+            // Обновление UI при изменении алмазов
+        }
+        
+        private void HandleError(string error)
+        {
+            // Обработка ошибок, специфичных для баттл-пасса
+            if (_currentView != null)
+            {
+                _currentView.ShowError(error);
+            }
         }
     }
 }

@@ -1,4 +1,6 @@
-using BasketballCards.UI.Presenters;
+using BasketballCards.Core;
+using BasketballCards.Models;
+using BasketballCards.Services;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -6,11 +8,10 @@ using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public class GetCardView : MonoBehaviour
+    public class GetCardView : BaseView
     {
         [Header("UI References")]
         [SerializeField] private Button _getCardButton;
-        [SerializeField] private Button _backButton;
         [SerializeField] private TextMeshProUGUI _timerText;
         [SerializeField] private TextMeshProUGUI _attemptsText;
         [SerializeField] private GameObject _cardDisplay;
@@ -18,18 +19,23 @@ namespace BasketballCards.UI.Views
         [SerializeField] private TextMeshProUGUI _cardNameText;
         [SerializeField] private TextMeshProUGUI _cardRarityText;
         
-        private ActivitiesPresenter _presenter;
+        private ActivitiesService _activitiesService;
         private Coroutine _timerCoroutine;
         
-        public void Initialize(ActivitiesPresenter presenter)
+        public System.Action OnBackRequested;
+        
+        public void Initialize(ActivitiesService activitiesService)
         {
-            _presenter = presenter;
+            _activitiesService = activitiesService;
             
             _getCardButton.onClick.AddListener(OnGetCardButtonClicked);
-            _backButton.onClick.AddListener(OnBackButtonClicked);
-            
             UpdateAttemptsText(3);
             StartTimer();
+        }
+        
+        protected override void OnBackButtonClicked()
+        {
+            OnBackRequested?.Invoke();
         }
         
         private void StartTimer()
@@ -42,7 +48,7 @@ namespace BasketballCards.UI.Views
         
         private IEnumerator UpdateTimer()
         {
-            int timeRemaining = 14400;
+            int timeRemaining = 14400; // 4 часа в секундах
             
             while (timeRemaining > 0)
             {
@@ -63,7 +69,7 @@ namespace BasketballCards.UI.Views
             _attemptsText.text = $"Попыток: {attempts}";
         }
         
-        public void DisplayCard(BasketballCards.Models.CardData card)
+        public void DisplayCard(CardData card)
         {
             _cardDisplay.SetActive(true);
             _cardNameText.text = card.PlayerName;
@@ -71,29 +77,14 @@ namespace BasketballCards.UI.Views
             _cardImage.color = card.RarityColor;
         }
         
-        public void ShowError(string error)
-        {
-            Debug.LogError($"GetCard Error: {error}");
-        }
-        
         private void OnGetCardButtonClicked()
         {
-            _presenter.GetFreeCard();
+            EventSystem.RequestFreeCard();
         }
         
-        private void OnBackButtonClicked()
+        public override void Show()
         {
-            _presenter.ShowActivities();
-        }
-        
-        public void Show()
-        {
-            gameObject.SetActive(true);
-        }
-        
-        public void Hide()
-        {
-            gameObject.SetActive(false);
+            base.Show();
             _cardDisplay.SetActive(false);
         }
     }

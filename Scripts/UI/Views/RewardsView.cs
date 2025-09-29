@@ -1,6 +1,5 @@
 using BasketballCards.Models;
 using BasketballCards.Services;
-using BasketballCards.UI.Presenters;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -8,31 +7,37 @@ using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public class RewardsView : MonoBehaviour
+    public class RewardsView : BaseView
     {
         [Header("UI References")]
-        [SerializeField] private Button _backButton;
         [SerializeField] private Transform _rewardsContainer;
         [SerializeField] private GameObject _rewardPrefab;
         [SerializeField] private ScrollRect _scrollRect;
-        [SerializeField] private TextMeshProUGUI _levelText;
+        [SerializeField] private TextMeshProUGUI _currentLevelText;
         [SerializeField] private Slider _progressSlider;
+        [SerializeField] private TextMeshProUGUI _freeRewardsTitle;
+        [SerializeField] private TextMeshProUGUI _premiumRewardsTitle;
         
-        private BattlePassPresenter _presenter;
         private BattlePassService _battlePassService;
+        private List<RewardElement> _rewardElements = new List<RewardElement>();
         
-        public void Initialize(BattlePassPresenter presenter, BattlePassService battlePassService)
+        public System.Action OnBackRequested;
+        public System.Action<int, bool> OnRewardClaimed;
+        
+        public void Initialize(BattlePassService battlePassService)
         {
-            _presenter = presenter;
             _battlePassService = battlePassService;
-            
-            _backButton.onClick.AddListener(OnBackButtonClicked);
+        }
+        
+        protected override void OnBackButtonClicked()
+        {
+            OnBackRequested?.Invoke();
         }
         
         public void DisplayRewards(BattlePassProgress progress)
         {
-            _levelText.text = $"Уровень: {progress.Level}";
-            _progressSlider.value = progress.Experience % 1000 / 1000f;
+            _currentLevelText.text = $"Текущий уровень: {progress.Level}";
+            _progressSlider.value = (float)progress.Experience / 1000f;
             
             DisplayRewardsList(progress);
         }
@@ -41,44 +46,32 @@ namespace BasketballCards.UI.Views
         {
             ClearRewards();
             
+            // Создаем награды для уровней 1-30 согласно ТЗ
             for (int level = 1; level <= 30; level++)
             {
-                var rewardObject = Instantiate(_rewardPrefab, _rewardsContainer);
-                var rewardElement = rewardObject.GetComponent<RewardElement>();
-                
-                bool isClaimed = progress.ClaimedRewards.Contains(level);
-                bool canClaim = progress.Level >= level && !isClaimed;
-                
-                rewardElement.Initialize(level, isClaimed, canClaim, OnClaimReward);
+                CreateRewardElement(level, progress);
             }
+        }
+        
+        private void CreateRewardElement(int level, BattlePassProgress progress)
+        {
+            var rewardObject = Instantiate(_rewardPrefab, _rewardsContainer);
+            var rewardElement = rewardObject.GetComponent<RewardElement>();
+            
+            bool isClaimed = progress.ClaimedRewards.Contains(level);
+            bool canClaim = progress.Level >= level && !isClaimed;
+            
+            rewardElement.Initialize(level, isClaimed, canClaim, progress.PremiumUnlocked, OnRewardClaimed);
+            _rewardElements.Add(rewardElement);
         }
         
         private void ClearRewards()
         {
-            foreach (Transform child in _rewardsContainer)
+            foreach (var element in _rewardElements)
             {
-                Destroy(child.gameObject);
+                Destroy(element.gameObject);
             }
-        }
-        
-        private void OnClaimReward(int level, bool isPremium)
-        {
-            _presenter.OnRewardClaimed(level, isPremium);
-        }
-        
-        private void OnBackButtonClicked()
-        {
-            _presenter.ShowBattlePass();
-        }
-        
-        public void Show()
-        {
-            gameObject.SetActive(true);
-        }
-        
-        public void Hide()
-        {
-            gameObject.SetActive(false);
+            _rewardElements.Clear();
         }
     }
 }

@@ -1,31 +1,34 @@
+using BasketballCards.Core;
 using BasketballCards.Models;
 using BasketballCards.Services;
-using BasketballCards.UI.Presenters;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public class CardShopView : MonoBehaviour
+    public class CardShopView : ShopViewBase
     {
         [Header("UI References")]
-        [SerializeField] private Button _backButton;
         [SerializeField] private Transform _itemsContainer;
         [SerializeField] private GameObject _itemPrefab;
         [SerializeField] private ScrollRect _scrollRect;
         
-        private ShopPresenter _presenter;
         private ShopService _shopService;
+        private List<ShopItemElement> _itemElements = new List<ShopItemElement>();
         
-        public void Initialize(ShopPresenter presenter, ShopService shopService)
+        public System.Action OnBackRequested;
+        
+        public void Initialize(ShopService shopService)
         {
-            _presenter = presenter;
             _shopService = shopService;
-            
-            _backButton.onClick.AddListener(OnBackButtonClicked);
-            
             LoadShopItems();
+        }
+        
+        // ПЕРЕОПРЕДЕЛЯЕМ метод для конкретной логики CardShopView
+        protected override void OnBackButtonClicked()
+        {
+            OnBackRequested?.Invoke();
         }
         
         private void LoadShopItems()
@@ -35,7 +38,7 @@ namespace BasketballCards.UI.Views
                     DisplayItems(items);
                 },
                 error => {
-                    Debug.LogError("Failed to load shop items: " + error);
+                    ShowError($"Failed to load shop items: {error}");
                 });
         }
         
@@ -48,49 +51,22 @@ namespace BasketballCards.UI.Views
                 var itemObject = Instantiate(_itemPrefab, _itemsContainer);
                 var shopItemElement = itemObject.GetComponent<ShopItemElement>();
                 shopItemElement.Initialize(item, OnPurchaseItem);
+                _itemElements.Add(shopItemElement);
             }
         }
         
         private void ClearItems()
         {
-            foreach (Transform child in _itemsContainer)
+            foreach (var element in _itemElements)
             {
-                Destroy(child.gameObject);
+                Destroy(element.gameObject);
             }
+            _itemElements.Clear();
         }
         
         private void OnPurchaseItem(ShopItem item)
         {
-            _shopService.PurchaseItem(item.Id,
-                result => {
-                    if (result.Success)
-                    {
-                        Debug.Log("Purchase successful: " + result.Message);
-                        _presenter.OnPurchaseSuccess();
-                    }
-                    else
-                    {
-                        Debug.LogError("Purchase failed: " + result.Message);
-                    }
-                },
-                error => {
-                    Debug.LogError("Purchase error: " + error);
-                });
-        }
-        
-        private void OnBackButtonClicked()
-        {
-            _presenter.ShowShop();
-        }
-        
-        public void Show()
-        {
-            gameObject.SetActive(true);
-        }
-        
-        public void Hide()
-        {
-            gameObject.SetActive(false);
+            EventSystem.PurchaseShopItem(item);
         }
     }
 }

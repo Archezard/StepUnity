@@ -1,4 +1,5 @@
 using BasketballCards.Models;
+using BasketballCards.Core;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -60,10 +61,12 @@ namespace BasketballCards.UI.Views
         {
             if (eventData.clickCount == 2)
             {
-                _onSelectAction?.Invoke(_cardData);
+                // Двойной клик - открываем 3D просмотр
+                BasketballCards.Core.EventSystem.RequestCardView(_cardData);
             }
             else
             {
+                // Одинарный клик - выделение для крафта/разбора
                 _isSelected = !_isSelected;
                 _selectionBorder.gameObject.SetActive(_isSelected);
                 _onToggleAction?.Invoke(_cardData, _isSelected);

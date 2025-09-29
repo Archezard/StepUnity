@@ -1,90 +1,98 @@
 using BasketballCards.Models;
 using BasketballCards.Services;
-using BasketballCards.UI.Presenters;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public class TasksView : MonoBehaviour
+    public class TasksView : BaseView
     {
         [Header("UI References")]
-        [SerializeField] private Button _backButton;
         [SerializeField] private Transform _tasksContainer;
         [SerializeField] private GameObject _taskPrefab;
         [SerializeField] private ScrollRect _scrollRect;
+        [SerializeField] private TextMeshProUGUI _dailyTasksTitle;
+        [SerializeField] private TextMeshProUGUI _monthlyTasksTitle;
         
-        private BattlePassPresenter _presenter;
         private BattlePassService _battlePassService;
+        private List<TaskElement> _taskElements = new List<TaskElement>();
         
-        public void Initialize(BattlePassPresenter presenter, BattlePassService battlePassService)
+        public System.Action OnBackRequested;
+        
+        public void Initialize(BattlePassService battlePassService)
         {
-            _presenter = presenter;
             _battlePassService = battlePassService;
-            
-            _backButton.onClick.AddListener(OnBackButtonClicked);
             
             LoadTasks();
         }
         
-        private void LoadTasks()
+        protected override void OnBackButtonClicked()
         {
-            // Заглушка для загрузки заданий
-            var tasks = new List<BattlePassTask>
-            {
-                new BattlePassTask { Name = "Выиграть матч в 5 на 5", Experience = 200, Progress = 0, Target = 1 },
-                new BattlePassTask { Name = "Кинуть мячик", Experience = 200, Progress = 0, Target = 1 },
-                new BattlePassTask { Name = "Скрафтить карточку", Experience = 200, Progress = 0, Target = 1 },
-                new BattlePassTask { Name = "Получить 5 карт", Experience = 200, Progress = 0, Target = 5 },
-                new BattlePassTask { Name = "Получить серебряную карту", Experience = 200, Progress = 0, Target = 1 }
-            };
-            
-            DisplayTasks(tasks);
+            OnBackRequested?.Invoke();
         }
         
-        private void DisplayTasks(List<BattlePassTask> tasks)
+        private void LoadTasks()
+        {
+            // Загрузка заданий из сервиса
+            // Временная заглушка
+            var dailyTasks = new List<BattlePassTask>
+            {
+                new BattlePassTask { Name = "Выиграть матч в 5 на 5", Experience = 200, Progress = 0, Target = 1, IsDaily = true },
+                new BattlePassTask { Name = "Кинуть мячик", Experience = 200, Progress = 0, Target = 1, IsDaily = true },
+                new BattlePassTask { Name = "Скрафтить карточку", Experience = 200, Progress = 0, Target = 1, IsDaily = true }
+            };
+            
+            var monthlyTasks = new List<BattlePassTask>
+            {
+                new BattlePassTask { Name = "Получить 50 карт", Experience = 1000, Progress = 25, Target = 50, IsDaily = false },
+                new BattlePassTask { Name = "Получить легендарную карту", Experience = 2000, Progress = 0, Target = 1, IsDaily = false },
+                new BattlePassTask { Name = "Открыть 3 пака", Experience = 800, Progress = 1, Target = 3, IsDaily = false }
+            };
+            
+            DisplayTasks(dailyTasks, monthlyTasks);
+        }
+        
+        private void DisplayTasks(List<BattlePassTask> dailyTasks, List<BattlePassTask> monthlyTasks)
         {
             ClearTasks();
             
-            foreach (var task in tasks)
+            _dailyTasksTitle.gameObject.SetActive(true);
+            foreach (var task in dailyTasks)
             {
-                var taskObject = Instantiate(_taskPrefab, _tasksContainer);
-                var taskElement = taskObject.GetComponent<TaskElement>();
-                taskElement.Initialize(task);
+                CreateTaskElement(task);
             }
+            
+            _monthlyTasksTitle.gameObject.SetActive(true);
+            foreach (var task in monthlyTasks)
+            {
+                CreateTaskElement(task);
+            }
+        }
+        
+        private void CreateTaskElement(BattlePassTask task)
+        {
+            var taskObject = Instantiate(_taskPrefab, _tasksContainer);
+            var taskElement = taskObject.GetComponent<TaskElement>();
+            taskElement.Initialize(task, OnTaskClaimed);
+            _taskElements.Add(taskElement);
         }
         
         private void ClearTasks()
         {
-            foreach (Transform child in _tasksContainer)
+            foreach (var element in _taskElements)
             {
-                Destroy(child.gameObject);
+                Destroy(element.gameObject);
             }
+            _taskElements.Clear();
         }
         
-        private void OnBackButtonClicked()
+        private void OnTaskClaimed(BattlePassTask task)
         {
-            _presenter.ShowBattlePass();
+            // Запрос на получение награды за задание
+            ShowSuccess($"Задание выполнено! Получено {task.Experience} опыта");
+            // Здесь будет вызов сервиса для получения награды
         }
-        
-        public void Show()
-        {
-            gameObject.SetActive(true);
-        }
-        
-        public void Hide()
-        {
-            gameObject.SetActive(false);
-        }
-    }
-    
-    public class BattlePassTask
-    {
-        public string Name { get; set; }
-        public int Experience { get; set; }
-        public int Progress { get; set; }
-        public int Target { get; set; }
-        public bool IsCompleted => Progress >= Target;
     }
 }

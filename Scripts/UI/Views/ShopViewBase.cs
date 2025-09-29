@@ -1,32 +1,36 @@
+using BasketballCards.Core;
 using BasketballCards.UI.Presenters;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public abstract class ShopViewBase : MonoBehaviour
+    public abstract class ShopViewBase : BaseView
     {
-        [SerializeField] protected Button _backButton;
+        // УБИРАЕМ дублирование поля _backButton, так как оно уже есть в BaseView
+        // [SerializeField] protected Button _backButton;
         
         protected ShopPresenter _presenter;
         
         public virtual void Initialize(ShopPresenter presenter)
         {
             _presenter = presenter;
-            _backButton.onClick.AddListener(OnBackButtonClicked);
+            // Кнопка назад уже инициализирована в BaseView
         }
         
-        protected virtual void OnBackButtonClicked()
+        // ДОБАВЛЯЕМ override для метода OnBackButtonClicked
+        protected override void OnBackButtonClicked()
         {
-            _presenter.ShowShop();
+            // Базовая реализация для магазина - может быть переопределена
+            EventSystem.NavigateBack();
         }
         
-        public virtual void Show()
+        public override void Show()
         {
             gameObject.SetActive(true);
         }
         
-        public virtual void Hide()
+        public override void Hide()
         {
             gameObject.SetActive(false);
         }

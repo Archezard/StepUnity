@@ -11,6 +11,7 @@ namespace BasketballCards.UI.Views
         [Header("UI References")]
         [SerializeField] private TextMeshProUGUI _nameText;
         [SerializeField] private TextMeshProUGUI _priceText;
+        [SerializeField] private TextMeshProUGUI _descriptionText;
         [SerializeField] private Button _buyButton;
         
         private ShopItem _item;
@@ -23,6 +24,7 @@ namespace BasketballCards.UI.Views
             
             _nameText.text = item.Name;
             _priceText.text = $"{item.Price} {item.Currency}";
+            _descriptionText.text = item.Description ?? "";
             
             _buyButton.onClick.AddListener(OnBuyButtonClicked);
         }

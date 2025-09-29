@@ -1,69 +1,42 @@
-using BasketballCards.Managers;
 using BasketballCards.Models;
-using BasketballCards.UI.Presenters;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BasketballCards.UI.Views
 {
-    public class BattlePassView : MonoBehaviour
+    public class BattlePassView : BaseView
     {
         [Header("UI References")]
         [SerializeField] private Button _tasksButton;
         [SerializeField] private Button _rewardsButton;
         [SerializeField] private Button _purchasePremiumButton;
-        [SerializeField] private Button _backButton;
         [SerializeField] private TextMeshProUGUI _levelText;
+        [SerializeField] private TextMeshProUGUI _experienceText;
         [SerializeField] private Slider _progressSlider;
+        [SerializeField] private TextMeshProUGUI _premiumStatusText;
         
-        private BattlePassPresenter _presenter;
+        public System.Action OnTasksSelected;
+        public System.Action OnRewardsSelected;
+        public System.Action OnPremiumPurchaseSelected;
         
-        public void Initialize(BattlePassPresenter presenter)
+        public void Initialize()
         {
-            _presenter = presenter;
-            
-            _tasksButton.onClick.AddListener(OnTasksButtonClicked);
-            _rewardsButton.onClick.AddListener(OnRewardsButtonClicked);
-            _purchasePremiumButton.onClick.AddListener(OnPurchasePremiumButtonClicked);
-            _backButton.onClick.AddListener(OnBackButtonClicked);
+            _tasksButton.onClick.AddListener(() => OnTasksSelected?.Invoke());
+            _rewardsButton.onClick.AddListener(() => OnRewardsSelected?.Invoke());
+            _purchasePremiumButton.onClick.AddListener(() => OnPremiumPurchaseSelected?.Invoke());
         }
         
         public void DisplayProgress(BattlePassProgress progress)
         {
-            _levelText.text = $"Level: {progress.Level}";
-            _progressSlider.value = progress.Experience % 1000 / 1000f; // Предполагаем, что каждый уровень требует 1000 опыта
+            _levelText.text = $"Уровень: {progress.Level}";
+            _experienceText.text = $"Опыт: {progress.Experience}/1000";
+            _progressSlider.value = (float)progress.Experience / 1000f;
+            
+            _premiumStatusText.text = progress.PremiumUnlocked ? "Премиум активирован" : "Бесплатная версия";
             _purchasePremiumButton.interactable = !progress.PremiumUnlocked;
-        }
-        
-        private void OnTasksButtonClicked()
-        {
-            _presenter.ShowTasks();
-        }
-        
-        private void OnRewardsButtonClicked()
-        {
-            _presenter.ShowRewards();
-        }
-        
-        private void OnPurchasePremiumButtonClicked()
-        {
-            _presenter.OnPremiumPurchased();
-        }
-        
-        private void OnBackButtonClicked()
-        {
-            UIManager.Instance.ShowMainMenu();
-        }
-        
-        public void Show()
-        {
-            gameObject.SetActive(true);
-        }
-        
-        public void Hide()
-        {
-            gameObject.SetActive(false);
+            _purchasePremiumButton.GetComponentInChildren<TextMeshProUGUI>().text = 
+                progress.PremiumUnlocked ? "Активировано" : "Купить премиум";
         }
     }
 }
