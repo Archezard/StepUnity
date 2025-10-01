@@ -22,7 +22,9 @@ namespace BasketballCards.Core
                 return;
             }
             
-            InitializeSystems();
+            // Инициализация в правильном порядке
+            InitializeCoreSystems();
+            InitializeServices();
             StartApplication();
             
             Debug.Log("Bootstrap: Initialization complete!");
@@ -37,37 +39,76 @@ namespace BasketballCards.Core
             if (_performanceProfiler == null) _performanceProfiler = FindFirstObjectByType<PerformanceProfiler>();
             
             return _appCoordinator != null && _userDataManager != null && 
-                   _navigationService != null && _telegramManager != null &&
-                   _performanceProfiler != null;
+                   _navigationService != null && _telegramManager != null;
         }
         
-        private void InitializeSystems()
+        private void InitializeCoreSystems()
         {
+            Debug.Log("Bootstrap: Initializing core systems...");
             
+            // 1. Сначала гарантируем, что UserDataManager готов
+            if (_userDataManager != null)
+            {
+                Debug.Log("Bootstrap: UserDataManager verified");
+            }
+            
+            // 2. Затем инициализируем AppCoordinator
+            if (_appCoordinator != null)
+            {
+                _appCoordinator.Initialize();
+            }
+            
+            // 3. Затем остальные системы
             _performanceProfiler?.Initialize();
             _telegramManager?.Initialize();
+        }
+        
+        private void InitializeServices()
+        {
+            Debug.Log("Bootstrap: Setting up service dependencies...");
             
             if (_telegramManager != null && _appCoordinator != null)
             {
                 _telegramManager.SetAppCoordinator(_appCoordinator);
             }
-    
-            if (_userDataManager != null)
-            {
-                Debug.Log("Bootstrap: UserDataManager verified");
-            }
         }
         
         private void StartApplication()
         {
-            // Запуск через Telegram Manager или напрямую
-            if (_telegramManager != null)
+            Debug.Log("Bootstrap: Starting application...");
+            
+            // Проверяем, что AppCoordinator полностью инициализирован
+            if (_appCoordinator != null && _appCoordinator.IsInitialized())
             {
-                _telegramManager.StartApplication();
+                if (_telegramManager != null)
+                {
+                    _telegramManager.StartApplication();
+                }
+                else
+                {
+                    _appCoordinator.StartApplication();
+                }
             }
             else
             {
-                _appCoordinator?.StartApplication();
+                Debug.LogError("Bootstrap: AppCoordinator is not initialized!");
+                // Альтернативный запуск с задержкой
+                StartCoroutine(DelayedStart());
+            }
+        }
+        
+        private System.Collections.IEnumerator DelayedStart()
+        {
+            Debug.LogWarning("Bootstrap: Retrying application start...");
+            yield return new WaitForSeconds(1f);
+            
+            if (_appCoordinator != null && _appCoordinator.IsInitialized())
+            {
+                _appCoordinator.StartApplication();
+            }
+            else
+            {
+                Debug.LogError("Bootstrap: Failed to start application after retry!");
             }
         }
     }

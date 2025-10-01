@@ -27,7 +27,6 @@ namespace BasketballCards.Managers
             // Инициализация Telegram Web App
         }
         
-        // Метод для установки ссылки на AppCoordinator
         public void SetAppCoordinator(AppCoordinator appCoordinator)
         {
             _appCoordinator = appCoordinator;
@@ -51,13 +50,33 @@ namespace BasketballCards.Managers
 
             if (!_appCoordinator.IsInitialized())
             {
-                Debug.LogError("TelegramManager: AppCoordinator is not fully initialized!");
-                // Можно попробовать подождать или перезапустить позже
+                Debug.LogWarning("TelegramManager: AppCoordinator is not fully initialized, waiting...");
+                // Ждём инициализации
+                StartCoroutine(WaitForAppCoordinator());
                 return;
             }
             
             // Запускаем приложение через AppCoordinator
             _appCoordinator.StartApplication();
+        }
+        
+        private System.Collections.IEnumerator WaitForAppCoordinator()
+        {
+            int attempts = 0;
+            while (!_appCoordinator.IsInitialized() && attempts < 10)
+            {
+                attempts++;
+                yield return new WaitForSeconds(0.5f);
+            }
+            
+            if (_appCoordinator.IsInitialized())
+            {
+                _appCoordinator.StartApplication();
+            }
+            else
+            {
+                Debug.LogError("TelegramManager: AppCoordinator initialization timeout!");
+            }
         }
     }
 }

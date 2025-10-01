@@ -2,6 +2,7 @@ using BasketballCards.Core;
 using BasketballCards.Models;
 using BasketballCards.Services;
 using BasketballCards.UI.Views;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,6 +23,16 @@ namespace BasketballCards.UI.Presenters
         private BaseView _currentSubView;
         private CollectionSubScreen _currentSubScreen = CollectionSubScreen.Collection;
         
+        // Сервисы
+        private CardService _cardService;
+        private CraftService _craftService;
+        private AlbumService _albumService;
+        private TradeService _tradeService;
+        
+        // Флаги инициализации
+        private bool _areServicesInitialized = false;
+        private bool _isWaitingForServices = false;
+        
         protected override void SubscribeToEvents()
         {
             base.SubscribeToEvents();
@@ -31,16 +42,6 @@ namespace BasketballCards.UI.Presenters
             EventSystem.OnCardsCrafted += HandleCardsCrafted;
             EventSystem.OnCardsDisassembled += HandleCardsDisassembled;
             EventSystem.OnErrorOccurred += HandleError;
-            
-            if (UserDataManager.Instance != null)
-            {
-                UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
-                UserDataManager.Instance.OnCurrencyChanged += HandleCurrencyChanged;
-            }
-            else
-            {
-                Debug.LogWarning("CollectionPresenter: UserDataManager.Instance is null during subscription");
-            }
         }
         
         protected override void UnsubscribeFromEvents()
@@ -52,21 +53,78 @@ namespace BasketballCards.UI.Presenters
             EventSystem.OnCardsCrafted -= HandleCardsCrafted;
             EventSystem.OnCardsDisassembled -= HandleCardsDisassembled;
             EventSystem.OnErrorOccurred -= HandleError;
+        }
+        
+        protected override void OnUserDataManagerReady()
+        {
+            InitializeServices();
+        }
+        
+        private void InitializeServices()
+        {
+            if (_areServicesInitialized) return;
             
-            if (UserDataManager.Instance != null)
+            var appCoordinator = AppCoordinator.Instance;
+            if (appCoordinator == null || !appCoordinator.IsInitialized())
             {
-                UserDataManager.Instance.OnUserDataUpdated -= HandleUserDataUpdated;
-                UserDataManager.Instance.OnCurrencyChanged -= HandleCurrencyChanged;
+                Debug.LogWarning("CollectionPresenter: AppCoordinator not ready, waiting...");
+                StartCoroutine(WaitForAppCoordinator());
+                return;
             }
+            
+            // Получаем сервисы
+            _cardService = appCoordinator.CardService;
+            _craftService = appCoordinator.CraftService;
+            _albumService = appCoordinator.AlbumService;
+            _tradeService = appCoordinator.TradeService;
+            
+            if (_cardService == null)
+            {
+                Debug.LogError("CollectionPresenter: CardService is null after AppCoordinator initialization!");
+                return;
+            }
+            
+            _areServicesInitialized = true;
+            Debug.Log("CollectionPresenter: Services initialized successfully");
+            
+            // Загружаем данные если мы активны
+            if (IsActive())
+            {
+                LoadDataForCurrentSubScreen();
+            }
+        }
+        
+        private IEnumerator WaitForAppCoordinator()
+        {
+            if (_isWaitingForServices) yield break;
+            
+            _isWaitingForServices = true;
+            int maxAttempts = 50; // 5 секунд максимум
+            int attempts = 0;
+            
+            while (attempts < maxAttempts)
+            {
+                attempts++;
+                var appCoordinator = AppCoordinator.Instance;
+                
+                if (appCoordinator != null && appCoordinator.IsInitialized())
+                {
+                    _isWaitingForServices = false;
+                    InitializeServices();
+                    yield break;
+                }
+                
+                yield return new WaitForSeconds(0.1f);
+            }
+            
+            _isWaitingForServices = false;
+            Debug.LogError("CollectionPresenter: Timeout waiting for AppCoordinator initialization!");
         }
         
         private void Start()
         {
             InitializeHeader();
             InitializeSubViews();
-            
-            // Загрузка начальных данных
-            LoadUserCards();
         }
         
         private void InitializeHeader()
@@ -76,15 +134,10 @@ namespace BasketballCards.UI.Presenters
                 _headerView.Initialize();
                 _headerView.OnSubScreenSelected += HandleHeaderSubScreenSelected;
             }
-            else
-            {
-                Debug.LogError("CollectionPresenter: HeaderView reference is null!");
-            }
         }
         
         private void InitializeSubViews()
         {
-            // Собираем все подпредставления
             if (_collectionView != null)
             {
                 _collectionView.Initialize(this);
@@ -109,28 +162,34 @@ namespace BasketballCards.UI.Presenters
                 _subViews.Add(_exchangeView);
             }
             
-            // Показываем начальное подпредставление
             ShowSubView(GetViewForSubScreen(_currentSubScreen));
         }
         
         public override void Show()
         {
-            // Показываем хедер
             if (_headerView != null)
                 _headerView.gameObject.SetActive(true);
             
-            // Показываем текущее подпредставление
             if (_currentSubView != null)
                 _currentSubView.Show();
+            
+            // Инициализируем сервисы если еще не инициализированы
+            if (!_areServicesInitialized)
+            {
+                InitializeServices();
+            }
+            else
+            {
+                // Если сервисы уже инициализированы, загружаем данные
+                LoadDataForCurrentSubScreen();
+            }
         }
         
         public override void Hide()
         {
-            // Скрываем хедер
             if (_headerView != null)
                 _headerView.gameObject.SetActive(false);
             
-            // Скрываем все подпредставления
             foreach (var view in _subViews)
             {
                 if (view != null)
@@ -148,19 +207,20 @@ namespace BasketballCards.UI.Presenters
             _currentSubScreen = subScreen;
             var targetView = GetViewForSubScreen(subScreen);
             ShowSubView(targetView);
+            
+            // Загружаем данные для нового подраздела
+            LoadDataForCurrentSubScreen();
         }
         
         private void ShowSubView(BaseView view)
         {
             if (view == null) return;
             
-            // Скрываем текущее подпредставление
             if (_currentSubView != null)
             {
                 _currentSubView.Hide();
             }
             
-            // Показываем новое подпредставление
             _currentSubView = view;
             _currentSubView.Show();
         }
@@ -177,26 +237,44 @@ namespace BasketballCards.UI.Presenters
             }
         }
         
-        protected override void HandleUserDataUpdated(UserData userData)
+        private void LoadDataForCurrentSubScreen()
         {
-            // При обновлении данных пользователя перезагружаем карточки
-            LoadUserCards();
+            if (!_areServicesInitialized)
+            {
+                Debug.LogWarning("CollectionPresenter: Services not initialized, skipping data load");
+                return;
+            }
+            
+            switch (_currentSubScreen)
+            {
+                case CollectionSubScreen.Collection:
+                case CollectionSubScreen.Workshop:
+                    LoadUserCards();
+                    break;
+                case CollectionSubScreen.Album:
+                    LoadAlbums();
+                    break;
+                case CollectionSubScreen.Exchange:
+                    LoadTradeOffers();
+                    break;
+            }
         }
         
-        private void LoadUserCards()
+        // PUBLIC METHODS CALLED FROM VIEWS
+        
+        public void LoadUserCards()
         {
-            var cardService = AppCoordinator.Instance?.CardService;
-            if (cardService == null)
+            if (!_areServicesInitialized || _cardService == null)
             {
                 Debug.LogError("CollectionPresenter: CardService is not available");
                 return;
             }
             
-            cardService.GetUserCards(
+            _cardService.GetUserCards(
                 cards => {
-                    if (_collectionView != null)
+                    if (_currentSubView is ICollectionView collectionView)
                     {
-                        _collectionView.DisplayCards(cards);
+                        collectionView.DisplayCards(cards);
                     }
                 },
                 error => {
@@ -204,36 +282,167 @@ namespace BasketballCards.UI.Presenters
                 });
         }
         
+        public void CraftCards(List<string> cardIds)
+        {
+            if (!_areServicesInitialized || _craftService == null)
+            {
+                Debug.LogError("CollectionPresenter: CraftService is not available");
+                return;
+            }
+            
+            _craftService.CraftCards(cardIds,
+                craftedCard => {
+                    if (_currentSubView is IWorkshopView workshopView)
+                    {
+                        workshopView.OnCraftSuccess(craftedCard);
+                    }
+                    EventSystem.ShowSuccess($"Успешно скрафчена карта: {craftedCard.PlayerName}");
+                    
+                    // Обновляем данные пользователя
+                    UpdateUserData();
+                },
+                error => {
+                    EventSystem.ShowError($"Крафт не удался: {error}");
+                });
+        }
+        
+        public void DisassembleCards(List<string> cardIds)
+        {
+            if (!_areServicesInitialized || _craftService == null)
+            {
+                Debug.LogError("CollectionPresenter: CraftService is not available");
+                return;
+            }
+            
+            _craftService.DisassembleCards(cardIds,
+                result => {
+                    if (_currentSubView is IWorkshopView workshopView)
+                    {
+                        workshopView.OnDisassembleSuccess(result.Gold, result.Dust);
+                    }
+                    EventSystem.ShowSuccess($"Разбор успешен! Получено: {result.Gold} золота");
+                    
+                    // Обновляем данные пользователя
+                    UpdateUserData();
+                },
+                error => {
+                    EventSystem.ShowError($"Разбор не удался: {error}");
+                });
+        }
+        
+        public void LoadAlbums()
+        {
+            if (!_areServicesInitialized || _albumService == null)
+            {
+                Debug.LogError("CollectionPresenter: AlbumService is not available");
+                return;
+            }
+            
+            _albumService.GetUserAlbums(
+                albums => {
+                    // Конвертируем AlbumInfo в AlbumData для View
+                    var albumDataList = new List<AlbumData>();
+                    foreach (var albumInfo in albums)
+                    {
+                        albumDataList.Add(new AlbumData 
+                        { 
+                            Id = albumInfo.Id, 
+                            Name = albumInfo.Name, 
+                            Type = albumInfo.Type 
+                        });
+                    }
+                    
+                    if (_currentSubView is IAlbumView albumView)
+                    {
+                        albumView.DisplayAlbums(albumDataList);
+                    }
+                },
+                error => {
+                    EventSystem.ShowError($"Failed to load albums: {error}");
+                });
+        }
+        
+        public void LoadTradeOffers()
+        {
+            if (!_areServicesInitialized || _tradeService == null)
+            {
+                Debug.LogError("CollectionPresenter: TradeService is not available");
+                return;
+            }
+            
+            _tradeService.GetTradeOffers(
+                offersData => {
+                    // Конвертируем TradeOfferData в TradeOffer для View
+                    var tradeOffers = new List<TradeOffer>();
+                    foreach (var offerData in offersData)
+                    {
+                        tradeOffers.Add(new TradeOffer
+                        {
+                            OfferId = offerData.OfferId,
+                            FromUserId = offerData.FromUserId,
+                            FromUsername = offerData.FromUsername,
+                            OfferedCards = offerData.OfferedCards,
+                            RequestedCards = offerData.RequestedCards,
+                            Status = offerData.Status
+                        });
+                    }
+                    
+                    if (_currentSubView is IExchangeView exchangeView)
+                    {
+                        exchangeView.DisplayTradeOffers(tradeOffers);
+                    }
+                },
+                error => {
+                    EventSystem.ShowError($"Failed to load trade offers: {error}");
+                });
+        }
+        
+        public void OnCardSelectedInView(CardData card)
+        {
+            EventSystem.RequestCardView(card);
+        }
+        
+        public void OnUpgradeCardRequestedInView(CardData card)
+        {
+            if (!_areServicesInitialized || _cardService == null) return;
+            
+            _cardService.UpgradeCard(card.CardId,
+                upgradedCard => {
+                    EventSystem.UpgradeCard(upgradedCard);
+                    UpdateUserData();
+                },
+                error => {
+                    EventSystem.ShowError(error);
+                });
+        }
+        
+        // EVENT HANDLERS
+        
         private void HandleCardUpgraded(CardData card)
         {
-            // Обновление карточки после улучшения
-            if (_currentSubView is ICollectionView collectionView)
+            // При улучшении карты перезагружаем коллекцию
+            if (_areServicesInitialized)
             {
-                collectionView.OnCardUpgraded(card);
+                LoadUserCards();
             }
         }
         
         private void HandleCardsCrafted(List<CardData> cards)
         {
-            // Добавление скрафченных карточек в коллекцию
-            if (_currentSubView is ICollectionView collectionView)
+            // При успешном крафте перезагружаем коллекцию
+            if (_areServicesInitialized)
             {
-                collectionView.OnCardCrafted(cards[0]);
+                LoadUserCards();
             }
         }
         
         private void HandleCardsDisassembled(List<CardData> cards)
         {
-            // Удаление разобранных карточек из коллекции
-            if (_currentSubView is ICollectionView collectionView)
+            // При разборе перезагружаем коллекцию
+            if (_areServicesInitialized)
             {
-                // Здесь нужно обновить отображение коллекции
+                LoadUserCards();
             }
-        }
-        
-        private void HandleCurrencyChanged(int oldGold, int newGold)
-        {
-            // Обновление UI при изменении валюты
         }
         
         private void HandleError(string error)
@@ -244,40 +453,23 @@ namespace BasketballCards.UI.Presenters
             }
         }
         
-        // Методы, вызываемые из под-представлений
-        public void OnCardSelectedInView(CardData card)
+        private void UpdateUserData()
         {
-            // Прямой вызов CardViewer через EventSystem
-            EventSystem.RequestCardView(card);
+            var userService = AppCoordinator.Instance?.UserService;
+            if (userService != null && UserDataManager.Instance != null)
+            {
+                userService.GetUserData(
+                    UserDataManager.Instance.CurrentUser.username,
+                    userData => UserDataManager.Instance.UpdateUserData(userData),
+                    error => EventSystem.ShowError("Failed to update user data")
+                );
+            }
         }
         
-        public void OnUpgradeCardRequestedInView(CardData card)
+        // Вспомогательные методы
+        public bool AreServicesReady()
         {
-            var cardService = AppCoordinator.Instance?.CardService;
-            if (cardService == null)
-            {
-                Debug.LogError("CollectionPresenter: CardService is not available");
-                return;
-            }
-            
-            cardService.UpgradeCard(card.CardId,
-                upgradedCard => {
-                    EventSystem.UpgradeCard(upgradedCard);
-                    
-                    // Обновляем данные пользователя
-                    var userService = AppCoordinator.Instance?.UserService;
-                    if (userService != null && UserDataManager.Instance != null)
-                    {
-                        userService.GetUserData(
-                            UserDataManager.Instance.CurrentUser.username,
-                            userData => UserDataManager.Instance.UpdateUserData(userData),
-                            error => EventSystem.ShowError("Failed to update user data")
-                        );
-                    }
-                },
-                error => {
-                    EventSystem.ShowError(error);
-                });
+            return _areServicesInitialized;
         }
     }
 }

@@ -14,147 +14,136 @@ namespace BasketballCards.UI.Views
         [SerializeField] private ScrollRect _scrollRect;
         [SerializeField] private GridLayoutGroup _cardsGrid;
         [SerializeField] private GameObject _cardPrefab;
-        [SerializeField] private TextMeshProUGUI _selectionInfoText;
-        [SerializeField] private Button _craftButton;
-        [SerializeField] private Button _disassembleButton;
         [SerializeField] private Button _filterButton;
         [SerializeField] private TMP_InputField _searchInputField;
-        
+        [SerializeField] private TextMeshProUGUI _searchModeText;
+        [SerializeField] private Button _searchModeButton;
+        [SerializeField] private TextMeshProUGUI _loadingText;
+        [SerializeField] private Button _retryButton;
+
         [Header("Filter UI")]
         [SerializeField] private GameObject _filterPanel;
-        [SerializeField] private Button _allCategoriesButton;
+        [SerializeField] private Button _allRaritiesButton;
         [SerializeField] private Button _bronzeFilterButton;
         [SerializeField] private Button _silverFilterButton;
         [SerializeField] private Button _goldFilterButton;
         [SerializeField] private Button _diamondFilterButton;
         [SerializeField] private Button _legendaryFilterButton;
+        [SerializeField] private Button _sortByNameButton;
+        [SerializeField] private Button _sortByLevelButton;
 
         private CollectionPresenter _presenter;
         private List<CardItemView> _cardViews = new List<CardItemView>();
         private List<CardData> _currentCards;
-        private Rarity? _currentFilter = null;
+        private Rarity? _currentRarityFilter = null;
         private string _currentSearchQuery = "";
-        
+        private bool _searchByTeam = false;
+        private bool _sortByName = true;
+
         public void Initialize(CollectionPresenter presenter)
         {
             _presenter = presenter;
-            
+
             // Инициализация кнопок
-            _craftButton.onClick.AddListener(OnCraftButtonClicked);
-            _disassembleButton.onClick.AddListener(OnDisassembleButtonClicked);
             _filterButton.onClick.AddListener(OnFilterButtonClicked);
             _searchInputField.onValueChanged.AddListener(OnSearchInputChanged);
-            
+            _searchModeButton.onClick.AddListener(OnSearchModeButtonClicked);
+            _retryButton.onClick.AddListener(OnRetryButtonClicked);
+
             // Инициализация фильтров
             InitializeFilters();
-            
+
             // Скрываем панель фильтров
-            if (_filterPanel != null)
-            {
-                _filterPanel.SetActive(false);
-            }
-            
-            UpdateSelectionCount(0);
+            _filterPanel.SetActive(false);
+
+            UpdateSearchModeText();
+            ShowLoadingState(true);
         }
-        
+
         private void InitializeFilters()
         {
-            _allCategoriesButton.onClick.AddListener(() => SetFilter(null));
-            _bronzeFilterButton.onClick.AddListener(() => SetFilter(Rarity.Bronze));
-            _silverFilterButton.onClick.AddListener(() => SetFilter(Rarity.Silver));
-            _goldFilterButton.onClick.AddListener(() => SetFilter(Rarity.Gold));
-            _diamondFilterButton.onClick.AddListener(() => SetFilter(Rarity.Diamond));
-            _legendaryFilterButton.onClick.AddListener(() => SetFilter(Rarity.Legendary));
+            _allRaritiesButton.onClick.AddListener(() => SetRarityFilter(null));
+            _bronzeFilterButton.onClick.AddListener(() => SetRarityFilter(Rarity.Bronze));
+            _silverFilterButton.onClick.AddListener(() => SetRarityFilter(Rarity.Silver));
+            _goldFilterButton.onClick.AddListener(() => SetRarityFilter(Rarity.Gold));
+            _diamondFilterButton.onClick.AddListener(() => SetRarityFilter(Rarity.Diamond));
+            _legendaryFilterButton.onClick.AddListener(() => SetRarityFilter(Rarity.Legendary));
+
+            _sortByNameButton.onClick.AddListener(() => SetSorting(true));
+            _sortByLevelButton.onClick.AddListener(() => SetSorting(false));
         }
-        
+
         public void DisplayCards(List<CardData> cards)
         {
             _currentCards = cards;
+            ShowLoadingState(false);
             ApplyFiltersAndSearch();
         }
-        
-    
-        public void ShowCardDetails(CardData card)
+
+        private void ShowLoadingState(bool isLoading, string message = "Загрузка карточек...")
         {
-            // Прямой вызов CardViewerPresenter через презентер
-            _presenter.OnCardSelectedInView(card);
+            _loadingText.text = message;
+            _loadingText.gameObject.SetActive(isLoading);
+            _retryButton.gameObject.SetActive(!isLoading && _currentCards == null);
+            _scrollRect.gameObject.SetActive(!isLoading && _currentCards != null);
         }
-        
-        public void UpdateSelectionCount(int count)
+
+        private void OnRetryButtonClicked()
         {
-            _selectionInfoText.text = $"Выбрано: {count}";
-            _craftButton.interactable = count >= 10;
-            _disassembleButton.interactable = count > 0;
+            ShowLoadingState(true, "Повторная загрузка...");
+            _presenter?.LoadUserCards();
         }
-        
-        public void OnCardUpgraded(CardData card)
-        {
-            // Находим View этой карточки и обновляем ее
-            var cardView = _cardViews.Find(c => c.CardId == card.CardId);
-            if (cardView != null)
-            {
-                cardView.UpdateCardData(card);
-            }
-            
-            ShowSuccess($"Карточка улучшена до уровня {card.Level}!");
-        }
-        
-        public void OnCardCrafted(CardData card)
-        {
-            // Добавляем новую карточку в коллекцию
-            _currentCards.Add(card);
-            ApplyFiltersAndSearch();
-            
-            // Показываем новую карточку
-            ShowCardDetails(card);
-            
-            ShowSuccess($"Успешно скрафчена карточка: {card.PlayerName}!");
-        }
-        
-        public void ClearSelection()
-        {
-            foreach (var cardView in _cardViews)
-            {
-                cardView.SetSelected(false);
-            }
-            UpdateSelectionCount(0);
-        }
-        
+
         private void ApplyFiltersAndSearch()
         {
             ClearCards();
-            
+
             var filteredCards = _currentCards;
-            
+
             // Применяем фильтр по редкости
-            if (_currentFilter.HasValue)
+            if (_currentRarityFilter.HasValue)
             {
-                filteredCards = filteredCards.FindAll(c => c.Rarity == _currentFilter.Value);
+                filteredCards = filteredCards.FindAll(c => c.Rarity == _currentRarityFilter.Value);
             }
-            
+
             // Применяем поиск
             if (!string.IsNullOrEmpty(_currentSearchQuery))
             {
-                filteredCards = filteredCards.FindAll(c => 
-                    c.PlayerName.ToLower().Contains(_currentSearchQuery.ToLower()) ||
-                    (c.Team != null && c.Team.ToLower().Contains(_currentSearchQuery.ToLower())));
+                if (_searchByTeam)
+                {
+                    filteredCards = filteredCards.FindAll(c =>
+                        c.Team?.ToLower().Contains(_currentSearchQuery.ToLower()) == true);
+                }
+                else
+                {
+                    filteredCards = filteredCards.FindAll(c =>
+                        c.PlayerName.ToLower().Contains(_currentSearchQuery.ToLower()));
+                }
             }
-            
-            // Сортируем карточки (по имени, по умолчанию)
-            filteredCards.Sort((a, b) => string.Compare(a.PlayerName, b.PlayerName));
-            
+
+            // Сортируем карточки
+            if (_sortByName)
+            {
+                filteredCards.Sort((a, b) => string.Compare(a.PlayerName, b.PlayerName));
+            }
+            else
+            {
+                filteredCards.Sort((a, b) => b.Level.CompareTo(a.Level));
+            }
+
             // Создаем карточки в UI
             foreach (var card in filteredCards)
             {
-                var cardView = Instantiate(_cardPrefab, _cardsGrid.transform).GetComponent<CardItemView>();
+                var cardObject = Instantiate(_cardPrefab, _cardsGrid.transform);
+                var cardView = cardObject.GetComponent<CardItemView>();
                 if (cardView != null)
                 {
-                    cardView.Initialize(card, OnCardSelected, OnCardToggled);
+                    cardView.Initialize(card, OnCardSelected, null); // В коллекции нет множественного выбора
                     _cardViews.Add(cardView);
                 }
             }
         }
-        
+
         private void ClearCards()
         {
             foreach (var cardView in _cardViews)
@@ -163,82 +152,86 @@ namespace BasketballCards.UI.Views
             }
             _cardViews.Clear();
         }
-        
+
         private void OnCardSelected(CardData card)
         {
-            _presenter.OnCardSelectedInView(card);
+            // В коллекции при выборе карточки сразу открываем просмотр
+            EventSystem.RequestCardView(card);
         }
-        
-        private void OnCardToggled(CardData card, bool isSelected)
-        {
-            // Обработка выбора карточек для крафта/разбора
-            // TODO: Реализовать логику выбора
-        }
-        
-        private void OnCraftButtonClicked()
-        {
-            // TODO: Реализовать логику крафта
-        }
-        
-        private void OnDisassembleButtonClicked()
-        {
-            // TODO: Реализовать логику разбора
-        }
-        
+
         private void OnFilterButtonClicked()
         {
-            if (_filterPanel != null)
-            {
-                _filterPanel.SetActive(!_filterPanel.activeSelf);
-            }
+            _filterPanel.SetActive(!_filterPanel.activeSelf);
         }
-        
-        private void SetFilter(Rarity? rarity)
+
+        private void SetRarityFilter(Rarity? rarity)
         {
-            _currentFilter = rarity;
+            _currentRarityFilter = rarity;
             ApplyFiltersAndSearch();
-            
-            // Скрываем панель фильтров
-            if (_filterPanel != null)
-            {
-                _filterPanel.SetActive(false);
-            }
+            _filterPanel.SetActive(false);
         }
-        
+
         private void OnSearchInputChanged(string searchQuery)
         {
             _currentSearchQuery = searchQuery;
             ApplyFiltersAndSearch();
         }
-        
+
+        private void OnSearchModeButtonClicked()
+        {
+            _searchByTeam = !_searchByTeam;
+            UpdateSearchModeText();
+            ApplyFiltersAndSearch(); // Переприменяем поиск с новым режимом
+        }
+
+        private void UpdateSearchModeText()
+        {
+            _searchModeText.text = _searchByTeam ? "По команде" : "По имени";
+        }
+
+        private void SetSorting(bool sortByName)
+        {
+            _sortByName = sortByName;
+            ApplyFiltersAndSearch();
+            _filterPanel.SetActive(false);
+        }
+
+        public override void ShowError(string message)
+        {
+            base.ShowError(message);
+            ShowLoadingState(false, $"Ошибка: {message}");
+        }
+
         public override void Show()
         {
             base.Show();
-            
+
             // Сбрасываем фильтры и поиск при показе
-            _currentFilter = null;
+            _currentRarityFilter = null;
             _currentSearchQuery = "";
             _searchInputField.text = "";
-            
-            // Скрываем дополнительные панели
-            if (_filterPanel != null)
+            _searchByTeam = false;
+            _sortByName = true;
+
+            UpdateSearchModeText();
+            _filterPanel.SetActive(false);
+
+            // Проверяем доступность сервисов перед загрузкой
+            if (_presenter != null && _presenter.AreServicesReady())
             {
-                _filterPanel.SetActive(false);
+                ShowLoadingState(true);
+                _presenter.LoadUserCards();
             }
-            
-            // Очищаем выделение
-            ClearSelection();
+            else
+            {
+                ShowLoadingState(false, "Сервисы не готовы...");
+            }
         }
-        
+
         public override void Hide()
         {
             base.Hide();
-            
-            // Скрываем все дополнительные панели
-            if (_filterPanel != null)
-            {
-                _filterPanel.SetActive(false);
-            }
+            _filterPanel.SetActive(false);
         }
     }
 }

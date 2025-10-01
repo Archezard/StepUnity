@@ -24,15 +24,15 @@ namespace BasketballCards.Services
             onSuccess?.Invoke(true);
         }
         
-        public void GetTradeOffers(Action<List<TradeOffer>> onSuccess, Action<string> onError = null)
+        public void GetTradeOffers(Action<List<TradeOfferData>> onSuccess, Action<string> onError = null)
         {
             // Заглушка для демонстрации
             Debug.Log("Getting trade offers");
             
             // После тут будет запрос к API
-            var offers = new List<TradeOffer>
+            var offers = new List<TradeOfferData>
             {
-                new TradeOffer
+                new TradeOfferData
                 {
                     OfferId = "1",
                     FromUserId = "user2",
@@ -56,7 +56,7 @@ namespace BasketballCards.Services
         }
     }
     
-    public class TradeOffer
+    public class TradeOfferData
     {
         public string OfferId { get; set; }
         public string FromUserId { get; set; }
@@ -64,13 +64,5 @@ namespace BasketballCards.Services
         public List<CardData> OfferedCards { get; set; }
         public List<CardData> RequestedCards { get; set; }
         public TradeStatus Status { get; set; }
-    }
-    
-    public enum TradeStatus
-    {
-        Pending,
-        Accepted,
-        Rejected,
-        Cancelled
     }
 }

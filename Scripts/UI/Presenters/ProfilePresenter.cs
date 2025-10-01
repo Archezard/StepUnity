@@ -60,7 +60,7 @@ namespace BasketballCards.UI.Presenters
             if (_profileView != null)
             {
                 _profileView.Initialize();
-                // Подписка на события ProfileView, если они появятся
+                // Подписка на события ProfileView, если они вообще будут
             }
             
             // Инициализация других View когда они будут реализованы

@@ -10,10 +10,13 @@ namespace BasketballCards.Core
         public UserData CurrentUser { get; private set; }
         
         public event System.Action<UserData> OnUserDataUpdated;
-        public event System.Action<int, int> OnCurrencyChanged; // oldGold, newGold
-        public event System.Action<int, int> OnDiamondsChanged; // oldDiamonds, newDiamonds
-        public event System.Action<int, int> OnTicketsChanged; // oldTickets, newTickets
+        public event System.Action<int, int> OnCurrencyChanged;
+        public event System.Action<int, int> OnDiamondsChanged;
+        public event System.Action<int, int> OnTicketsChanged;
         
+        // Флаг готовности
+        public bool IsReady { get; private set; }
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -24,10 +27,13 @@ namespace BasketballCards.Core
             
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            IsReady = true; // Помечаем как готовый
         }
         
         public void UpdateUserData(UserData userData)
         {
+            if (!IsReady) return;
+            
             var oldGold = CurrentUser?.gold ?? 0;
             var oldDiamonds = CurrentUser?.diamonds ?? 0;
             var oldTickets = CurrentUser?.tickets ?? 0;

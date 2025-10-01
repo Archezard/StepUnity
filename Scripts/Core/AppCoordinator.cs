@@ -32,6 +32,18 @@ namespace BasketballCards.Core
             
             Instance = this;
             DontDestroyOnLoad(gameObject);
+        }
+        
+        // Публичный метод для инициализации (вызывается из Bootstrap)
+        public void Initialize()
+        {
+            if (_isInitialized)
+            {
+                Debug.LogWarning("AppCoordinator: Already initialized");
+                return;
+            }
+            
+            Debug.Log("AppCoordinator: Initializing services...");
             
             InitializeServices();
             SetupEventHandlers();
@@ -42,8 +54,7 @@ namespace BasketballCards.Core
         
         private void InitializeServices()
         {
-            Debug.Log("AppCoordinator: Initializing services...");
-            
+            // Создаём ApiClient если его нет
             if (ApiClient == null)
             {
                 ApiClient = gameObject.GetComponent<ApiClient>();
@@ -53,6 +64,7 @@ namespace BasketballCards.Core
                 }
             }
             
+            // Инициализируем сервисы
             UserService = new UserService(ApiClient);
             CardService = new CardService(ApiClient);
             ShopService = new ShopService(ApiClient);
@@ -68,7 +80,6 @@ namespace BasketballCards.Core
         
         private void SetupEventHandlers()
         {
-            // Подписка на системные события
             EventSystem.OnErrorOccurred += HandleError;
             EventSystem.OnSuccessMessage += HandleSuccessMessage;
         }
@@ -76,13 +87,11 @@ namespace BasketballCards.Core
         private void HandleError(string errorMessage)
         {
             Debug.LogError($"App Error: {errorMessage}");
-            // Здесь добавить показ UI ошибки
         }
         
         private void HandleSuccessMessage(string message)
         {
             Debug.Log($"App Success: {message}");
-            // Здесь добавить показ UI успешного сообщения
         }
         
         public void StartApplication()
@@ -95,30 +104,29 @@ namespace BasketballCards.Core
 
             Debug.Log("AppCoordinator: Starting application...");
             
-            // Проверяем, что UserService инициализирован
+            // Загрузка данных пользователя с проверками
             if (UserService == null)
             {
                 Debug.LogError("AppCoordinator: UserService is null!");
+                CreateDefaultUser();
                 return;
             }
             
-            // Загрузка данных пользователя
             UserService.GetUserData("test_user", 
                 userData => {
-                    if (UserDataManager.Instance != null)
+                    if (UserDataManager.Instance != null && UserDataManager.Instance.IsReady)
                     {
                         UserDataManager.Instance.UpdateUserData(userData);
                         EventSystem.NavigateTo(AppScreen.Collection);
                     }
                     else
                     {
-                        Debug.LogError("AppCoordinator: UserDataManager.Instance is null!");
+                        Debug.LogWarning("AppCoordinator: UserDataManager not ready, creating default user");
                         CreateDefaultUser();
                     }
                 },
                 error => {
                     EventSystem.ShowError($"Failed to load user data: {error}");
-                    // Создаем пользователя по умолчанию в случае ошибки, но лучше тут сделать что-то другое
                     CreateDefaultUser();
                 });
         }
@@ -134,18 +142,42 @@ namespace BasketballCards.Core
                 tickets = 5
             };
             
-            if (UserDataManager.Instance != null)
+            if (UserDataManager.Instance != null && UserDataManager.Instance.IsReady)
             {
                 UserDataManager.Instance.UpdateUserData(defaultUser);
                 EventSystem.NavigateTo(AppScreen.Collection);
             }
             else
             {
-                Debug.LogError("AppCoordinator: Cannot create default user - UserDataManager is null!");
+                Debug.LogError("AppCoordinator: Cannot create default user - UserDataManager is not ready!");
+                // Пробуем ещё раз через секунду
+                StartCoroutine(DelayedDefaultUserCreation());
+            }
+        }
+        
+        private System.Collections.IEnumerator DelayedDefaultUserCreation()
+        {
+            yield return new WaitForSeconds(1f);
+            
+            if (UserDataManager.Instance != null && UserDataManager.Instance.IsReady)
+            {
+                var defaultUser = new BasketballCards.Models.UserData
+                {
+                    user_id = 1,
+                    username = "Player1",
+                    gold = 1000,
+                    diamonds = 100,
+                    tickets = 5
+                };
+                UserDataManager.Instance.UpdateUserData(defaultUser);
+                EventSystem.NavigateTo(AppScreen.Collection);
+            }
+            else
+            {
+                Debug.LogError("AppCoordinator: Failed to create default user after retry!");
             }
         }
 
-        // Метод для проверки готовности
         public bool IsInitialized()
         {
             return _isInitialized;

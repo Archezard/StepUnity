@@ -1,5 +1,7 @@
+// Scripts/UI/Presenters/BasePresenter.cs - ИСПРАВЛЕННАЯ ВЕРСИЯ
 using BasketballCards.Core;
 using BasketballCards.Models;
+using System.Collections;
 using UnityEngine;
 
 namespace BasketballCards.UI.Presenters
@@ -21,13 +23,53 @@ namespace BasketballCards.UI.Presenters
         protected virtual void SubscribeToEvents()
         {
             EventSystem.OnNavigationRequested += HandleNavigationRequest;
-            EventSystem.OnUserDataUpdated += HandleUserDataUpdated;
+            
+            // Безопасная подписка на UserDataManager
+            if (UserDataManager.Instance != null && UserDataManager.Instance.IsReady)
+            {
+                UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
+            }
+            else
+            {
+                // Если UserDataManager ещё не готов, отложим подписку
+                StartCoroutine(WaitForUserDataManager());
+            }
         }
         
         protected virtual void UnsubscribeFromEvents()
         {
             EventSystem.OnNavigationRequested -= HandleNavigationRequest;
-            EventSystem.OnUserDataUpdated -= HandleUserDataUpdated;
+            
+            if (UserDataManager.Instance != null)
+            {
+                UserDataManager.Instance.OnUserDataUpdated -= HandleUserDataUpdated;
+            }
+        }
+        
+        private IEnumerator WaitForUserDataManager()
+        {
+            // Ждём пока UserDataManager станет доступен
+            int attempts = 0;
+            int maxAttempts = 50; // 5 секунд максимум
+            
+            while (attempts < maxAttempts)
+            {
+                attempts++;
+                if (UserDataManager.Instance != null && UserDataManager.Instance.IsReady)
+                {
+                    UserDataManager.Instance.OnUserDataUpdated += HandleUserDataUpdated;
+                    OnUserDataManagerReady();
+                    yield break;
+                }
+                yield return new WaitForSeconds(0.1f);
+            }
+            
+            Debug.LogError($"{GetType().Name}: Timeout waiting for UserDataManager!");
+        }
+        
+        protected virtual void OnUserDataManagerReady()
+        {
+            // Переопределить в наследниках при необходимости
         }
         
         protected virtual void HandleNavigationRequest(AppScreen screen)
@@ -53,7 +95,7 @@ namespace BasketballCards.UI.Presenters
         // Вспомогательный метод для проверки активности
         public bool IsActive()
         {
-            return gameObject.activeInHierarchy;
+            return gameObject.activeInHierarchy && isActiveAndEnabled;
         }
     }
 }
